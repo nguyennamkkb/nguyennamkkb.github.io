@@ -1,62 +1,28 @@
 <!DOCTYPE html>
-<html lang="en">
-
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document</title>
+    <script src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
 </head>
-
 <body>
-    <input type="text" id="nameSearch" onchange="search()">
-    <div id="length"></div>
-    <pre id="str"></pre>
-    
+    <script>
+        const context = cast.framework.CastReceiverContext.getInstance();
+        const playerManager = context.getPlayerManager();
 
-</body>
-<script>
-     var nam;
-    
-    function search(){
-        readTextFile("/data.json");
-        // readData(data);
-    }
-    function readTextFile(file) {
-        var allText;
-        var rawFile = new XMLHttpRequest();
-        rawFile.open("GET", file, false);
-        rawFile.onreadystatechange = function () {
-            if (rawFile.readyState === 4) {
-                if (rawFile.status === 200 || rawFile.status == 0) {
-                    allText = rawFile.responseText;
-                    // return allText;
-                    gerSearch(allText)
+        playerManager.setMessageInterceptor(
+            cast.framework.messages.MessageType.LOAD,
+            (request) => {
+                console.log("Received request:", request);
+                
+                if (request.media && request.media.contentId) {
+                    window.location.href = request.media.contentId; // Chuyển trang web
                 }
+
+                return request;
             }
-        }
-        rawFile.send(allText);
-    }
-    function readData(data){
-        gerSearch(data)
-    }
-    function gerSearch(s) {
-        nam = JSON.parse(s)
-        // console.log(nam)
-        // const result = nam.find(({ name }) => name.ad.indexOf("Long Biên") != -1);
-        var nameSearch = document.getElementById("nameSearch").value;
-        // console.log("nameSearch"+nameSearch)
-        nameSearch = nameSearch.toLowerCase()
-        const result = nam.filter(({ ad }) =>  (ad.toLowerCase().indexOf(nameSearch) != -1 && ad.toLowerCase().indexOf("hà nội") != -1));
-        // console.log(result); // { name: 'cherries', quantity: 5 }
+        );
 
-        document.getElementById("str").innerHTML = ""
-        document.getElementById("str").innerHTML = JSON.stringify(result, null, 4)
-        document.getElementById("length").innerHTML = result.length
-        
-
-    }
-
-</script>
-
+        context.start();
+    </script>
+    <h1>Custom Web Receiver</h1>
+</body>
 </html>
