@@ -97,6 +97,8 @@
         }
 
         // Khởi động Web Receiver
+        const options = new cast.framework.CastReceiverOptions();
+        options.maxInactivity = 3600; // Development only
         context.start();
     </script>
 </body>
