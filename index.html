@@ -48,6 +48,7 @@
             cast.framework.messages.MessageType.LOAD,
             loadRequestData => {
                 message.textContent += "loadRequestData.media: " + loadRequestData.media+ "----\n";
+                message.textContent += "loadRequestData.media: " + JSON.stringify(loadRequestData.media)+ "----\n";
                 message.textContent +=  "loadRequestData.media.contentID: " + loadRequestData.media.contentID+ "----\n";
                 message.textContent +=  "loadRequestData.media.contentURL: " + loadRequestData.media.contentURL+ "----\n";
                 if (loadRequestData.media && loadRequestData.media.contentID) {
@@ -56,7 +57,7 @@
                     console.log('LOAD request', loadRequestData);
                     preloadAndShowImage(imageUrl);
                 } else {
-                    message.textContent += 'Received LOAD request, but no image URL found.';
+                    message.textContent = 'Received LOAD request, but no image URL found.';
                     console.log('LOAD request without image', loadRequestData);
                 }
                 return null;
