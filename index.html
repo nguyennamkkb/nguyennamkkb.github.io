@@ -57,7 +57,7 @@
                     console.log('LOAD request', loadRequestData);
                     preloadAndShowImage(imageUrl);
                 } else {
-                    message.textContent = 'Received LOAD request, but no image URL found.';
+                    message.textContent += 'Received LOAD request, but no image URL found.';
                     console.log('LOAD request without image', loadRequestData);
                 }
                 return null;
