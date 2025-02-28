@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Basic Custom Receiver</title>
+    <title>Image Custom Receiver</title>
     <style>
         body {
             background-color: black;
@@ -12,30 +12,70 @@
             height: 100vh;
             margin: 0;
             font-family: sans-serif;
+            position: relative;
+        }
+        #imageContainer {
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+            opacity: 0;
+            transition: opacity 0.5s ease-in-out;
+        }
+        #message {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 14px;
         }
     </style>
 </head>
 <body>
-    <div>
-        <h1>Connected!</h1>
-        <p>This is a basic Custom Receiver.</p>
-        <p id="message"></p>
-    </div>
+    <img id="imageContainer" src="" alt="Received Image">
+    <div id="message"></div>
 
     <script src="//www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
     <script>
         const context = cast.framework.CastReceiverContext.getInstance();
         const playerManager = context.getPlayerManager();
         const message = document.getElementById('message');
+        const imageContainer = document.getElementById('imageContainer');
 
         playerManager.setMessageInterceptor(
             cast.framework.messages.MessageType.LOAD,
             loadRequestData => {
-                message.textContent = 'Received LOAD request';
-                console.log('LOAD request', loadRequestData);
+                if (loadRequestData.media && loadRequestData.media.contentId) {
+                    const imageUrl = loadRequestData.media.contentId;
+                    message.textContent = 'Received image URL: ' + imageUrl;
+                    console.log('LOAD request', loadRequestData);
+                    preloadAndShowImage(imageUrl);
+                } else {
+                    message.textContent = 'Received LOAD request, but no image URL found.';
+                    console.log('LOAD request without image', loadRequestData);
+                }
                 return null;
             }
         );
+
+        function preloadAndShowImage(url) {
+            const img = new Image();
+            img.onload = function () {
+                console.log("Image loaded:", url);
+                imageContainer.style.opacity = "0";
+                setTimeout(() => {
+                    imageContainer.src = url;
+                    imageContainer.style.opacity = "1";
+                }, 500);
+            };
+            img.onerror = function () {
+                console.error("Error loading image:", url);
+                message.textContent = 'Error loading image.';
+            };
+            img.src = url;
+        }
 
         context.start();
     </script>
