@@ -47,8 +47,8 @@
         playerManager.setMessageInterceptor(
             cast.framework.messages.MessageType.LOAD,
             loadRequestData => {
-                if (loadRequestData.media && loadRequestData.media.contentURL) {
-                    const imageUrl = loadRequestData.media.contentURL;
+                if (loadRequestData.media && loadRequestData.media.contentID) {
+                    const imageUrl = loadRequestData.media.contentID;
                     message.textContent = 'Received image URL: ' + imageUrl;
                     console.log('LOAD request', loadRequestData);
                     preloadAndShowImage(imageUrl);
