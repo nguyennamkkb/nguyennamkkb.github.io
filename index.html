@@ -1,79 +1,59 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Custom Web Receiver</title>
-    <script src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
-    <style>
-        body {
-            margin: 0;
-            background-color: black;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            overflow: hidden;
-        }
-        #imageContainer {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-            opacity: 0;
-            transition: opacity 0.5s ease-in-out;
-        }
-    </style>
+  <title>Custom Image Receiver</title>
+  <style>
+    body {
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      background-color: black;
+    }
+    #image {
+      max-width: 100%;
+      max-height: 100%;
+    }
+  </style>
 </head>
 <body>
-    <script>
-        console.log("✅ Chromecast đã nhận Web Receiver HTML!");
+  <img id="image" src="" alt="Image">
 
-        const context = cast.framework.CastReceiverContext.getInstance();
-        const playerManager = context.getPlayerManager();
+  <script src="//www.gstatic.com/cast/sdk/libs/receiver/3.0.0/cast_receiver_framework.js"></script>
+  <script>
+    const context = cast.framework.CastReceiverContext.getInstance();
+    const playerManager = context.getPlayerManager();
 
-        // Tạo thẻ ảnh trong body
-        const imageContainer = document.createElement("img");
-        imageContainer.id = "imageContainer";
-        document.body.appendChild(imageContainer);
+    const imageElement = document.getElementById('image');
+    let currentImage = null;
 
-        // Hiển thị ảnh mặc định khi Web Receiver tải lên
-        const defaultImage = "https://fastly.picsum.photos/id/152/200/200.jpg?hmac=jxm74qVoEmDIDdKJ1_I2QT6AhtYcq-KN75l_iotKiOw"; // Ảnh mặc định
-        imageContainer.src = defaultImage;
-        imageContainer.style.opacity = "1";
-        console.log("📷 Hiển thị ảnh mặc định:", defaultImage);
-
-        // Xử lý nhận hình ảnh từ Sender
-        playerManager.setMessageInterceptor(
-            cast.framework.messages.MessageType.LOAD,
-            (loadRequestData) => {
-                if (loadRequestData.media && loadRequestData.media.contentId) {
-                    const imageUrl = loadRequestData.media.contentId;
-                    console.log("📡 Nhận yêu cầu hiển thị ảnh:", imageUrl);
-                    preloadAndShowImage(imageUrl);
-                }
-                return null; // Ngăn Chromecast chạy media mặc định
-            }
-        );
-
-        // Hàm tải trước ảnh để tránh màn hình đen
-        function preloadAndShowImage(url) {
-            const img = new Image();
-            img.onload = function () {
-                console.log("✅ Ảnh đã tải xong:", url);
-                imageContainer.style.opacity = "0"; // Ẩn ảnh cũ
-                setTimeout(() => {
-                    imageContainer.src = url;
-                    imageContainer.style.opacity = "1"; // Hiển thị ảnh mới
-                }, 500); // Chờ transition hoàn tất
-            };
-            img.onerror = function () {
-                console.error("❌ Lỗi tải ảnh:", url);
-            };
-            img.src = url;
+    playerManager.setMessageInterceptor(
+      cast.framework.messages.MessageType.LOAD,
+      request => {
+        if (request.media && request.media.contentId) {
+          const imageUrl = request.media.contentId;
+          loadImage(imageUrl);
+          return null; // Ngăn chặn xử lý mặc định của LOAD
         }
+        return request;
+      }
+    );
 
-        // Khởi động Web Receiver
-        context.start();
-    </script>
+    function loadImage(imageUrl) {
+      const img = new Image();
+      img.onload = () => {
+        imageElement.src = imageUrl;
+        currentImage = imageUrl;
+      };
+      img.onerror = () => {
+        console.error('Không thể tải ảnh:', imageUrl);
+        // Xử lý lỗi tải ảnh (ví dụ: hiển thị ảnh mặc định)
+      };
+      img.src = imageUrl;
+    }
+
+    context.start();
+  </script>
 </body>
 </html>
