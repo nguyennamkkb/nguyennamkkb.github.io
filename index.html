@@ -80,12 +80,12 @@
             mirrorImage.onload = function () {
                 mirrorImage.style.visibility = 'visible';
                 message.textContent = "✅ Streaming live...";
-                setTimeout(updateImage, 1000); // Load ảnh mới sau 1 giây
+                setTimeout(updateImage, 0); // Load ảnh mới sau 1 giây
             };
 
             mirrorImage.onerror = function () {
                 console.error("❌ Lỗi tải ảnh, thử lại...");
-                setTimeout(updateImage, 1000);
+                setTimeout(updateImage, 0);
             };
 
             updateImage(); // Bắt đầu vòng lặp
