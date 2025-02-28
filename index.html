@@ -49,8 +49,6 @@
 
         // Lấy thông tin Application ID (sử dụng cho debug)
         const applicationData = context.getApplicationData();
-        console.log("ℹ️ Application ID:", applicationData.id);
-        console.log("ℹ️ Application Name:", applicationData.name);
 
         // Hiển thị thông báo đã kết nối
         statusOverlay.innerText = `✅ Kết nối thành công! App ID: ${applicationData.id}`;
