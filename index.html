@@ -1,100 +1,42 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Custom Web Receiver</title>
-    <script src="https://www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
+    <title>Basic Custom Receiver</title>
     <style>
         body {
-            margin: 0;
             background-color: black;
+            color: white;
             display: flex;
             justify-content: center;
             align-items: center;
             height: 100vh;
-            overflow: hidden;
-            position: relative;
-        }
-        #imageContainer {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-            opacity: 0;
-            transition: opacity 0.5s ease-in-out;
-        }
-        #statusOverlay {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            font-family: Arial, sans-serif;
-            font-size: 14px;
+            margin: 0;
+            font-family: sans-serif;
         }
     </style>
 </head>
 <body>
-    <!-- Overlay hiển thị trạng thái -->
-    <div id="statusOverlay">📡 Đang chờ kết nối...</div>
+    <div>
+        <h1>Connected!</h1>
+        <p>This is a basic Custom Receiver.</p>
+        <p id="message"></p>
+    </div>
 
+    <script src="//www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
     <script>
-        console.log("✅ Chromecast đã nhận Web Receiver HTML!");
-
         const context = cast.framework.CastReceiverContext.getInstance();
         const playerManager = context.getPlayerManager();
-        const statusOverlay = document.getElementById("statusOverlay");
+        const message = document.getElementById('message');
 
-        // Lấy thông tin Application ID (sử dụng cho debug)
-        const applicationData = context.getApplicationData();
-
-        // Hiển thị thông báo đã kết nối
-        statusOverlay.innerText = `✅ Kết nối thành công! App ID: ${applicationData.id}`;
-
-        // Tạo thẻ ảnh trong body
-        const imageContainer = document.createElement("img");
-        imageContainer.id = "imageContainer";
-        document.body.appendChild(imageContainer);
-
-        // Hiển thị ảnh mặc định khi Web Receiver tải lên
-        const defaultImage = "https://www.example.com/default.jpg"; // Ảnh mặc định
-        imageContainer.src = defaultImage;
-        imageContainer.style.opacity = "1";
-        console.log("📷 Hiển thị ảnh mặc định:", defaultImage);
-
-        // Xử lý nhận hình ảnh từ Sender
         playerManager.setMessageInterceptor(
             cast.framework.messages.MessageType.LOAD,
-            (loadRequestData) => {
-                if (loadRequestData.media && loadRequestData.media.contentId) {
-                    const imageUrl = loadRequestData.media.contentId;
-                    console.log("📡 Nhận yêu cầu hiển thị ảnh:", imageUrl);
-                    preloadAndShowImage(imageUrl);
-                }
-                return null; // Ngăn Chromecast chạy media mặc định
+            loadRequestData => {
+                message.textContent = 'Received LOAD request';
+                console.log('LOAD request', loadRequestData);
+                return null;
             }
         );
 
-        // Hàm tải trước ảnh để tránh màn hình đen
-        function preloadAndShowImage(url) {
-            const img = new Image();
-            img.onload = function () {
-                console.log("✅ Ảnh đã tải xong:", url);
-                imageContainer.style.opacity = "0"; // Ẩn ảnh cũ
-                setTimeout(() => {
-                    imageContainer.src = url;
-                    imageContainer.style.opacity = "1"; // Hiển thị ảnh mới
-                }, 500); // Chờ transition hoàn tất
-            };
-            img.onerror = function () {
-                console.error("❌ Lỗi tải ảnh:", url);
-            };
-            img.src = url;
-        }
-
-        // Khởi động Web Receiver
         context.start();
     </script>
 </body>
