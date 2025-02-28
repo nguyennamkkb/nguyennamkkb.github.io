@@ -28,6 +28,9 @@
     const imageElement = document.getElementById('image');
     let currentImage = null;
 
+    // Ảnh nền đầu tiên (thay thế bằng URL ảnh của bạn)
+    const initialImageUrl = "https://fastly.picsum.photos/id/152/200/200.jpg?hmac=jxm74qVoEmDIDdKJ1_I2QT6AhtYcq-KN75l_iotKiOw";
+
     playerManager.setMessageInterceptor(
       cast.framework.messages.MessageType.LOAD,
       request => {
@@ -54,6 +57,9 @@
     }
 
     context.start();
+
+    // Tải ảnh nền đầu tiên khi khởi động
+    loadImage(initialImageUrl);
   </script>
 </body>
 </html>
