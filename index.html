@@ -14,12 +14,11 @@
             font-family: sans-serif;
             position: relative;
         }
-        #imageContainer {
+        #mirrorImage {
             max-width: 100%;
             max-height: 100%;
             object-fit: contain;
-            opacity: 0;
-            transition: opacity 0.5s ease-in-out;
+            visibility: hidden;
         }
         #message {
             position: absolute;
@@ -34,51 +33,73 @@
     </style>
 </head>
 <body>
-    <img id="imageContainer" src="" alt="Received Image">
-    <div id="message"></div>
+    <img id="mirrorImage" src="" alt="Received Image">
+    <div id="message">Waiting for stream...</div>
 
     <script src="//www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
     <script>
         const context = cast.framework.CastReceiverContext.getInstance();
         const playerManager = context.getPlayerManager();
         const message = document.getElementById('message');
-        const imageContainer = document.getElementById('imageContainer');
+        const mirrorImage = document.getElementById('mirrorImage');
+        let imageUrl = "";
+        let index = 0;
 
         playerManager.setMessageInterceptor(
             cast.framework.messages.MessageType.LOAD,
             loadRequestData => {
-                message.textContent += "loadRequestData.media: " + loadRequestData.media+ "----\n";
-                message.textContent += "loadRequestData.media: " + JSON.stringify(loadRequestData.media)+ "----\n";
-                message.textContent +=  "loadRequestData.media.contentID: " + loadRequestData.media.contentID+ "----\n";
-                message.textContent +=  "loadRequestData.media.contentURL: " + loadRequestData.media.contentUrl+ "----\n";
-                if (loadRequestData.media && loadRequestData.media.contentUrl) {
-                    const imageUrl = loadRequestData.media.contentUrl;
-                    message.textContent = 'Received image URL: ' + imageUrl;
-                    console.log('LOAD request', loadRequestData);
-                    preloadAndShowImage(imageUrl);
+                console.log("📡 Nhận yêu cầu LOAD:", loadRequestData);
+
+                if (!loadRequestData.media || !loadRequestData.media.contentUrl) {
+                    message.textContent = '⚠️ Không có contentId trong media.';
+                    console.log('❌ Không có contentId:', loadRequestData.media);
+                    return null;
+                }
+
+                imageUrl = loadRequestData.media.contentUrl;
+                console.log('✅ Nhận URL:', imageUrl);
+
+                if (imageUrl.includes("live=true")) {
+                    message.textContent = "📷 Live stream mode activated!";
+                    startLiveImageStream(imageUrl);
                 } else {
-                    message.textContent += 'Received LOAD request, but no image URL found.';
-                    console.log('LOAD request without image', loadRequestData);
+                    message.textContent = "📷 Loading single image...";
+                    loadSingleImage(imageUrl);
                 }
                 return null;
             }
         );
 
-        function preloadAndShowImage(url) {
-            const img = new Image();
-            img.onload = function () {
-                console.log("Image loaded:", url);
-                imageContainer.style.opacity = "0";
-                setTimeout(() => {
-                    imageContainer.src = url;
-                    imageContainer.style.opacity = "1";
-                }, 500);
+        function startLiveImageStream(baseUrl) {
+            function updateImage() {
+                const timestamp = new Date().getTime();
+                mirrorImage.src = baseUrl.split("?")[0] + "?t=" + timestamp; // Tạo URL mới để tránh cache
+                console.log("🔄 Tải lại ảnh:", mirrorImage.src);
+            }
+
+            mirrorImage.onload = function () {
+                mirrorImage.style.visibility = 'visible';
+                message.textContent = "✅ Streaming live...";
+                setTimeout(updateImage, 1000); // Load ảnh mới sau 1 giây
             };
-            img.onerror = function () {
-                console.error("Error loading image:", url);
-                message.textContent = 'Error loading image.';
+
+            mirrorImage.onerror = function () {
+                console.error("❌ Lỗi tải ảnh, thử lại...");
+                setTimeout(updateImage, 1000);
             };
-            img.src = url;
+
+            updateImage(); // Bắt đầu vòng lặp
+        }
+
+        function loadSingleImage(url) {
+            mirrorImage.src = url;
+            mirrorImage.onload = function () {
+                mirrorImage.style.visibility = 'visible';
+                message.textContent = "✅ Image loaded successfully!";
+            };
+            mirrorImage.onerror = function () {
+                message.textContent = "❌ Error loading image.";
+            };
         }
 
         context.start();
