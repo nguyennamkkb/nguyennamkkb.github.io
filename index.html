@@ -50,9 +50,9 @@
                 message.textContent += "loadRequestData.media: " + loadRequestData.media+ "----\n";
                 message.textContent += "loadRequestData.media: " + JSON.stringify(loadRequestData.media)+ "----\n";
                 message.textContent +=  "loadRequestData.media.contentID: " + loadRequestData.media.contentID+ "----\n";
-                message.textContent +=  "loadRequestData.media.contentURL: " + loadRequestData.media.contentURL+ "----\n";
-                if (loadRequestData.media && loadRequestData.media.contentID) {
-                    const imageUrl = loadRequestData.media.contentID;
+                message.textContent +=  "loadRequestData.media.contentURL: " + loadRequestData.media.contentUrl+ "----\n";
+                if (loadRequestData.media && loadRequestData.media.contentUrl) {
+                    const imageUrl = loadRequestData.media.contentUrl;
                     message.textContent = 'Received image URL: ' + imageUrl;
                     console.log('LOAD request', loadRequestData);
                     preloadAndShowImage(imageUrl);
