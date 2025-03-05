@@ -180,11 +180,7 @@ playerManager.setMessageInterceptor(
     if (mimeType.startsWith("image/")) {
       // Nếu là ảnh, tải trước ảnh và hiển thị
       castDebugLogger.debug(LOG_RECEIVER_TAG, "Loading image...");
-
-      return new Promise((resolve) => {
-        loadSingleImage(source)
-        resolve(null)
-      });
+      loadSingleImage(source)
     } else {
 
       mirrorImage.style.visibility = 'hidden';
