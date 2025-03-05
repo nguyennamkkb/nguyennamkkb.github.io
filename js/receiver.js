@@ -203,6 +203,8 @@ return Promise.resolve()
             loadSingleImage(imageUrl);
             return nul
           } else {
+            mirrorImage.style.visibility = 'hidden';
+            videoPlayer.style.visibility = 'visible';
             castDebugLogger.debug(LOG_RECEIVER_TAG, "🎥 This is a video/audio, playing in video player.");
             loadRequestData.media = mediaInformation;
             return loadRequestData;
