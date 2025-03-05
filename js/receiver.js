@@ -220,8 +220,8 @@ playerManager.setMessageInterceptor(
       } else {
         castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received ID");
         try {
-          const mediaInformation =  MediaFetcher.fetchMediaInformationById(sourceId);
-          loadRequestData.media = mediaInformation;
+          // const mediaInformation =  MediaFetcher.fetchMediaInformationById(sourceId);
+          loadRequestData.media = media;
           return loadRequestData;
         } catch (errorMessage) {
           castDebugLogger.error(LOG_RECEIVER_TAG, errorMessage);
