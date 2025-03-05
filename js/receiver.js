@@ -179,7 +179,6 @@ function addBreaks(mediaInformation) {
 // );
 playerManager.setMessageInterceptor(
   cast.framework.messages.MessageType.LOAD, loadRequestData => {
-    castDebugLogger.debug(LOG_RECEIVER_TAG, `loadRequestData: ${JSON.stringify(loadRequestData)}`);
 
     if (!loadRequestData || !loadRequestData.media) {
       return new cast.framework.messages.ErrorData(
@@ -187,7 +186,7 @@ playerManager.setMessageInterceptor(
         cast.framework.messages.ErrorReason.INVALID_REQUEST
       );
     }
-
+    message.textContent = "2222222222";
     let media = loadRequestData.media;
     let mimeType = media.contentType || "";
     let source = media.contentUrl || media.entity || media.contentId;
@@ -201,7 +200,7 @@ playerManager.setMessageInterceptor(
 
     let sourceId = source.match(ID_REGEX)[1];
 
-    loadSingleImage(imageUrl);
+    loadSingleImage(source);
     // if (mimeType.startsWith("image/")) {
     //   // Nếu là ảnh, tải trước ảnh và hiển thị
     //   castDebugLogger.debug(LOG_RECEIVER_TAG, "Loading image...");
