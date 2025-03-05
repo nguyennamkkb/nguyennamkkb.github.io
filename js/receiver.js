@@ -152,7 +152,7 @@ function addBreaks(mediaInformation) {
  * Intercept the LOAD request to load and set the contentUrl.
  */
 playerManager.setMessageInterceptor(
-  cast.framework.messages.MessageType.LOAD, async loadRequestData => {
+  cast.framework.messages.MessageType.LOAD, loadRequestData => {
     castDebugLogger.debug(LOG_RECEIVER_TAG, `loadRequestData: ${JSON.stringify(loadRequestData)}`);
 
     if (!loadRequestData || !loadRequestData.media) {
@@ -165,7 +165,7 @@ playerManager.setMessageInterceptor(
     let media = loadRequestData.media;
     let mimeType = media.contentType || "";
     let source = media.contentUrl || media.entity || media.contentId;
-
+``
     if (!source || !source.match(ID_REGEX)) {
       return new cast.framework.messages.ErrorData(
         cast.framework.messages.ErrorType.LOAD_FAILED,
@@ -183,26 +183,26 @@ playerManager.setMessageInterceptor(
       loadSingleImage(source)
     } else {
 
-      mirrorImage.style.visibility = 'hidden';
-      videoPlayer.style.visibility = 'visible';
-      if (sourceId.includes('.')) {
-        castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received full URL");
-        media.contentUrl = source;
-        return loadRequestData;
-      } else {
-        castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received ID");
-        try {
-          const mediaInformation = await MediaFetcher.fetchMediaInformationById(sourceId);
-          loadRequestData.media = mediaInformation;
-          return loadRequestData;
-        } catch (errorMessage) {
-          castDebugLogger.error(LOG_RECEIVER_TAG, errorMessage);
-          return new cast.framework.messages.ErrorData(
-            cast.framework.messages.ErrorType.LOAD_FAILED,
-            cast.framework.messages.ErrorReason.INVALID_REQUEST
-          );
-        }
-      }
+      // mirrorImage.style.visibility = 'hidden';
+      // videoPlayer.style.visibility = 'visible';
+      // if (sourceId.includes('.')) {
+      //   castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received full URL");
+      //   media.contentUrl = source;
+      //   return loadRequestData;
+      // } else {
+      //   castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received ID");
+      //   try {
+      //     const mediaInformation =  MediaFetcher.fetchMediaInformationById(sourceId);
+      //     loadRequestData.media = mediaInformation;
+      //     return loadRequestData;
+      //   } catch (errorMessage) {
+      //     castDebugLogger.error(LOG_RECEIVER_TAG, errorMessage);
+      //     return new cast.framework.messages.ErrorData(
+      //       cast.framework.messages.ErrorType.LOAD_FAILED,
+      //       cast.framework.messages.ErrorReason.INVALID_REQUEST
+      //     );
+      //   }
+      // }
     }
   }
 );
