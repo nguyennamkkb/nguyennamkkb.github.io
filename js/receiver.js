@@ -20,7 +20,8 @@ limitations under the License.
 import { CastQueue } from './queuing.js';
 import { MediaFetcher } from './media_fetcher.js';
 import { AdsTracker, SenderTracker, ContentTracker } from './cast_analytics.js';
-
+const imagePlayer = document.getElementById("mirrorImage");
+const videoPlayer = document.getElementById("videoPlayer");
 /**
  * @fileoverview This sample demonstrates how to build your own Web Receiver for
  * use with Google Cast. The main receiver implementation is provided in this
@@ -101,7 +102,7 @@ playerManager.addEventListener(
         'LOAD_FAILED: Verify the load request is set up ' +
         'properly and the media is able to play.');
     }
-});
+  });
 
 /*
  * Example analytics tracking implementation. To enable this functionality see
@@ -126,88 +127,135 @@ function addBreaks(mediaInformation) {
   castDebugLogger.debug(LOG_RECEIVER_TAG, "addBreaks: " +
     JSON.stringify(mediaInformation));
   return MediaFetcher.fetchMediaById('fbb_ad')
-  .then((clip1) => {
-    mediaInformation.breakClips = [
-      {
-        id: 'fbb_ad',
-        title: clip1.title,
-        contentUrl: clip1.stream.dash,
-        contentType: 'application/dash+xml',
-        whenSkippable: 5
-      }
-    ];
+    .then((clip1) => {
+      mediaInformation.breakClips = [
+        {
+          id: 'fbb_ad',
+          title: clip1.title,
+          contentUrl: clip1.stream.dash,
+          contentType: 'application/dash+xml',
+          whenSkippable: 5
+        }
+      ];
 
-    mediaInformation.breaks = [
-      {
-        id: 'pre-roll',
-        breakClipIds: ['fbb_ad'],
-        position: 0
-      }
-    ];
-  });
+      mediaInformation.breaks = [
+        {
+          id: 'pre-roll',
+          breakClipIds: ['fbb_ad'],
+          position: 0
+        }
+      ];
+    });
 }
 
 /*
  * Intercept the LOAD request to load and set the contentUrl.
  */
 playerManager.setMessageInterceptor(
-  cast.framework.messages.MessageType.LOAD, loadRequestData => {
-    castDebugLogger.debug(LOG_RECEIVER_TAG,
-      `loadRequestData: ${JSON.stringify(loadRequestData)}`);
+  cast.framework.messages.MessageType.LOAD, async loadRequestData => {
+    castDebugLogger.debug(LOG_RECEIVER_TAG, `loadRequestData: ${JSON.stringify(loadRequestData)}`);
 
-    // If the loadRequestData is incomplete, return an error message.
     if (!loadRequestData || !loadRequestData.media) {
-      const error = new cast.framework.messages.ErrorData(
-        cast.framework.messages.ErrorType.LOAD_FAILED);
-      error.reason = cast.framework.messages.ErrorReason.INVALID_REQUEST;
-      return error;
+      return new cast.framework.messages.ErrorData(
+        cast.framework.messages.ErrorType.LOAD_FAILED,
+        cast.framework.messages.ErrorReason.INVALID_REQUEST
+      );
     }
 
-    // Check all content source fields for the asset URL or ID.
-    let source = loadRequestData.media.contentUrl
-      || loadRequestData.media.entity || loadRequestData.media.contentId;
+    let media = loadRequestData.media;
+    let mimeType = media.contentType || "";
+    let source = media.contentUrl || media.entity || media.contentId;
 
-    // If there is no source or a malformed ID then return an error.
-    if (!source || source == "" || !source.match(ID_REGEX)) {
-      let error = new cast.framework.messages.ErrorData(
-        cast.framework.messages.ErrorType.LOAD_FAILED);
-      error.reason = cast.framework.messages.ErrorReason.INVALID_REQUEST;
-      return error;
+    if (!source || !source.match(ID_REGEX)) {
+      return new cast.framework.messages.ErrorData(
+        cast.framework.messages.ErrorType.LOAD_FAILED,
+        cast.framework.messages.ErrorReason.INVALID_REQUEST
+      );
     }
 
     let sourceId = source.match(ID_REGEX)[1];
 
-    // Optionally add breaks to the media information and set the contentUrl.
-    return Promise.resolve()
-    // .then(() => addBreaks(loadRequestData.media)) // Uncomment to enable ads.
-    .then(() => {
-      // If the source is a url that points to an asset don't fetch from the
-      // content repository.
+
+
+    if (mimeType.startsWith("image/")) {
+      // Nếu là ảnh, tải trước ảnh và hiển thị
+      castDebugLogger.debug(LOG_RECEIVER_TAG, "Loading image...");
+
+      return new Promise((resolve) => {
+        loadSingleImage(source)
+        resolve(null)
+      });
+    } else {
+
+      mirrorImage.style.visibility = 'hidden';
+      videoPlayer.style.visibility = 'visible';
       if (sourceId.includes('.')) {
-        castDebugLogger.debug(LOG_RECEIVER_TAG,
-          "Interceptor received full URL");
-        loadRequestData.media.contentUrl = source;
+        castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received full URL");
+        media.contentUrl = source;
         return loadRequestData;
       } else {
-        // Fetch the contentUrl if provided an ID or entity URL.
         castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received ID");
-        return MediaFetcher.fetchMediaInformationById(sourceId)
-        .then((mediaInformation) => {
+        try {
+          const mediaInformation = await MediaFetcher.fetchMediaInformationById(sourceId);
           loadRequestData.media = mediaInformation;
           return loadRequestData;
-        })
+        } catch (errorMessage) {
+          castDebugLogger.error(LOG_RECEIVER_TAG, errorMessage);
+          return new cast.framework.messages.ErrorData(
+            cast.framework.messages.ErrorType.LOAD_FAILED,
+            cast.framework.messages.ErrorReason.INVALID_REQUEST
+          );
+        }
       }
-    })
-    .catch((errorMessage) => {
-      let error = new cast.framework.messages.ErrorData(
-        cast.framework.messages.ErrorType.LOAD_FAILED);
-      error.reason = cast.framework.messages.ErrorReason.INVALID_REQUEST;
-      castDebugLogger.error(LOG_RECEIVER_TAG, errorMessage);
-      return error;
-    });
+    }
   }
 );
 
+
+
+// Kiểm tra định dạng hình ảnh
+function isImageFormat(url) {
+  return url.match(/\.(jpeg|jpg|png|gif|webp)$/i);
+}
+
+function startLiveImageStream(baseUrl) {
+  liveStreamActive = true;
+  if (refreshInterval) clearInterval(refreshInterval);
+
+  function updateImage() {
+    const timestamp = new Date().getTime();
+    const newSrc = baseUrl.split("?")[0] + "?t=" + timestamp; // Tránh cache
+    mirrorImage.src = newSrc;
+    console.log("🔄 Cập nhật ảnh:", newSrc);
+  }
+
+  mirrorImage.onload = function () {
+    mirrorImage.style.visibility = 'visible';
+    message.textContent = "✅ Streaming live...";
+  };
+
+  mirrorImage.onerror = function () {
+    console.error("❌ Lỗi tải ảnh, thử lại...");
+  };
+
+  updateImage(); // Tải ảnh đầu tiên
+  refreshInterval = setInterval(updateImage, 1000); // Cập nhật mỗi giây
+}
+
+function loadSingleImage(url) {
+  liveStreamActive = false;
+  if (refreshInterval) clearInterval(refreshInterval);
+
+  mirrorImage.src = url;
+  mirrorImage.onload = function () {
+    mirrorImage.style.visibility = 'visible';
+    videoPlayer.style.visibility = 'hidden';
+    message.textContent = "✅ Image loaded successfully!";
+  };
+  mirrorImage.onerror = function () {
+    message.textContent = "❌ Error loading image.";
+  };
+}
 
 /*
  * Set the control buttons in the UI controls.
