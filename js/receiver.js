@@ -177,51 +177,65 @@ function addBreaks(mediaInformation) {
 //       return null;
 //   }
 // );
-return Promise.resolve()
-  .then(() => {
-    // Nếu source là một URL hợp lệ
-    if (sourceId.includes('.')) {
-      castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received full URL");
+playerManager.setMessageInterceptor(
+  cast.framework.messages.MessageType.LOAD, async loadRequestData => {
+    castDebugLogger.debug(LOG_RECEIVER_TAG, `loadRequestData: ${JSON.stringify(loadRequestData)}`);
 
-      if (isImageFormat(sourceId)) {
-        castDebugLogger.debug(LOG_RECEIVER_TAG, "✅ This is an image, showing image player.");
-        loadRequestData.media.contentType = "image/*"; // Đánh dấu là ảnh
-      } else {
-        castDebugLogger.debug(LOG_RECEIVER_TAG, "🎥 This is a video/audio, playing in video player.");
-      }
-
-      loadRequestData.media.contentUrl = source;
-      return loadRequestData;
-    } else {
-      // Fetch thông tin media nếu chỉ có ID
-      castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received ID");
-      return MediaFetcher.fetchMediaInformationById(sourceId)
-        .then((mediaInformation) => {
-          // Kiểm tra nếu contentType có thuộc nhóm hình ảnh không
-          if (mediaInformation.contentType && mediaInformation.contentType.startsWith("image/")) {
-            castDebugLogger.debug(LOG_RECEIVER_TAG, "✅ This is an image, showing image player.");
-            loadSingleImage(imageUrl);
-            return nul
-          } else {
-            mirrorImage.style.visibility = 'hidden';
-            videoPlayer.style.visibility = 'visible';
-            castDebugLogger.debug(LOG_RECEIVER_TAG, "🎥 This is a video/audio, playing in video player.");
-            loadRequestData.media = mediaInformation;
-            return loadRequestData;
-          }
-
-          // loadRequestData.media = mediaInformation;
-          // return loadRequestData;
-        });
+    if (!loadRequestData || !loadRequestData.media) {
+      return new cast.framework.messages.ErrorData(
+        cast.framework.messages.ErrorType.LOAD_FAILED,
+        cast.framework.messages.ErrorReason.INVALID_REQUEST
+      );
     }
-  })
-  .catch((errorMessage) => {
-    let error = new cast.framework.messages.ErrorData(
-      cast.framework.messages.ErrorType.LOAD_FAILED);
-    error.reason = cast.framework.messages.ErrorReason.INVALID_REQUEST;
-    castDebugLogger.error(LOG_RECEIVER_TAG, errorMessage);
-    return error;
-  });
+
+    let media = loadRequestData.media;
+    let mimeType = media.contentType || "";
+    let source = media.contentUrl || media.entity || media.contentId;
+
+    if (!source || !source.match(ID_REGEX)) {
+      return new cast.framework.messages.ErrorData(
+        cast.framework.messages.ErrorType.LOAD_FAILED,
+        cast.framework.messages.ErrorReason.INVALID_REQUEST
+      );
+    }
+
+    let sourceId = source.match(ID_REGEX)[1];
+
+    const imagePlayer = document.getElementById("imagePlayer");
+    const videoPlayer = document.getElementById("videoPlayer");
+
+    if (mimeType.startsWith("image/")) {
+      // Nếu là ảnh, tải trước ảnh và hiển thị
+      castDebugLogger.debug(LOG_RECEIVER_TAG, "Loading image...");
+
+      loadSingleImage(imageUrl);
+      return null
+    } else {
+      // Nếu không phải ảnh, hiển thị videoPlayer và tải như cũ
+      mirrorImage.style.visibility = 'hidden';
+      videoPlayer.style.visibility = 'visible';
+
+      if (sourceId.includes('.')) {
+        castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received full URL");
+        media.contentUrl = source;
+        return loadRequestData;
+      } else {
+        castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received ID");
+        try {
+          const mediaInformation = await MediaFetcher.fetchMediaInformationById(sourceId);
+          loadRequestData.media = mediaInformation;
+          return loadRequestData;
+        } catch (errorMessage) {
+          castDebugLogger.error(LOG_RECEIVER_TAG, errorMessage);
+          return new cast.framework.messages.ErrorData(
+            cast.framework.messages.ErrorType.LOAD_FAILED,
+            cast.framework.messages.ErrorReason.INVALID_REQUEST
+          );
+        }
+      }
+    }
+  }
+);
 
 
 
