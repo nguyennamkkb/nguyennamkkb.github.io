@@ -41,7 +41,7 @@ cast-media-player {
 /* Sample Overlay Text                               */
 /* ------------------------------------------------- */
 cast-media-player:after {
-  content: "AVN3";
+  content: "AVN4";
   position: absolute;
   left: 0;
   right: 0;
