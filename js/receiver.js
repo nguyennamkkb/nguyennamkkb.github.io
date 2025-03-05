@@ -153,6 +153,9 @@ function addBreaks(mediaInformation) {
 /*
  * Intercept the LOAD request to load and set the contentUrl.
  */
+/*
+ * Intercept the LOAD request to load and set the contentUrl.
+ */
 playerManager.setMessageInterceptor(
   cast.framework.messages.MessageType.LOAD, loadRequestData => {
     castDebugLogger.debug(LOG_RECEIVER_TAG,
@@ -196,24 +199,30 @@ playerManager.setMessageInterceptor(
         castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received ID");
         return MediaFetcher.fetchMediaInformationById(sourceId)
         .then((mediaInformation) => {
-          loadRequestData.media = mediaInformation;
 
-          // Tải trước hình ảnh.
-          if (mediaInformation.metadata && mediaInformation.metadata.images && mediaInformation.metadata.images.length > 0) {
-            const imageUrl = mediaInformation.metadata.images[0].url;
-            if (imageUrl) {
-              const img = new Image();
-              img.src = imageUrl;
-              img.onload = () => {
-                castDebugLogger.debug(LOG_RECEIVER_TAG, `Image preloaded: ${imageUrl}`);
-              };
-              img.onerror = () => {
-                castDebugLogger.error(LOG_RECEIVER_TAG, `Failed to preload image: ${imageUrl}`);
-              };
+          // Kiểm tra xem nội dung có phải là ảnh hay không.
+          if (mediaInformation.contentType && mediaInformation.contentType.startsWith('image/')) {
+            // Nếu là ảnh, tải trước ảnh và không ghi đè thông tin media.
+            if (mediaInformation.metadata && mediaInformation.metadata.images && mediaInformation.metadata.images.length > 0) {
+              const imageUrl = mediaInformation.metadata.images[0].url;
+              if (imageUrl) {
+                const img = new Image();
+                img.src = imageUrl;
+                img.onload = () => {
+                  castDebugLogger.debug(LOG_RECEIVER_TAG, `Image preloaded: ${imageUrl}`);
+                };
+                img.onerror = () => {
+                  castDebugLogger.error(LOG_RECEIVER_TAG, `Failed to preload image: ${imageUrl}`);
+                };
+              }
             }
+            // Không ghi đè loadRequestData.media
+            return loadRequestData;
+          } else {
+            // Nếu không phải là ảnh, tải thông tin media và cập nhật loadRequestData.media.
+            loadRequestData.media = mediaInformation;
+            return loadRequestData;
           }
-
-          return loadRequestData;
         })
       }
     })
