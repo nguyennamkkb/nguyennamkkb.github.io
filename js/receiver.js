@@ -150,77 +150,76 @@ function addBreaks(mediaInformation) {
 /*
  * Intercept the LOAD request to load and set the contentUrl.
  */
+/*
+ * Intercept the LOAD request to load and set the contentUrl.
+ */
 playerManager.setMessageInterceptor(
   cast.framework.messages.MessageType.LOAD, loadRequestData => {
     castDebugLogger.debug(LOG_RECEIVER_TAG,
       `loadRequestData: ${JSON.stringify(loadRequestData)}`);
 
-    // Nếu loadRequestData không hợp lệ, trả về lỗi
+    // If the loadRequestData is incomplete, return an error message.
     if (!loadRequestData || !loadRequestData.media) {
       const error = new cast.framework.messages.ErrorData(
-        cast.framework.messages.ErrorType.LOAD_FAILED
-      );
+        cast.framework.messages.ErrorType.LOAD_FAILED);
       error.reason = cast.framework.messages.ErrorReason.INVALID_REQUEST;
       return error;
     }
 
-    // Kiểm tra nguồn nội dung (URL hoặc ID)
+    // Check all content source fields for the asset URL or ID.
     let source = loadRequestData.media.contentUrl
       || loadRequestData.media.entity || loadRequestData.media.contentId;
 
-    if (!source || source === "" || !source.match(ID_REGEX)) {
+    // If there is no source or a malformed ID then return an error.
+    if (!source || source == "" || !source.match(ID_REGEX)) {
       let error = new cast.framework.messages.ErrorData(
-        cast.framework.messages.ErrorType.LOAD_FAILED
-      );
+        cast.framework.messages.ErrorType.LOAD_FAILED);
       error.reason = cast.framework.messages.ErrorReason.INVALID_REQUEST;
       return error;
     }
 
     let sourceId = source.match(ID_REGEX)[1];
 
+    // Optionally add breaks to the media information and set the contentUrl.
     return Promise.resolve()
-    // .then(() => addBreaks(loadRequestData.media)) // Uncomment để bật quảng cáo
+    // .then(() => addBreaks(loadRequestData.media)) // Uncomment to enable ads.
     .then(() => {
+      // If the source is a url that points to an asset don't fetch from the
+      // content repository.
       if (sourceId.includes('.')) {
-        castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received full URL");
-
-        // Nếu là hình ảnh, tải trước trước khi cập nhật nội dung
-        if (source.match(/\.(jpg|jpeg|png|gif|webp)$/i)) {
-          return new Promise((resolve) => {
-            let preloadedImage = new Image();
-            preloadedImage.src = source;
-
-            preloadedImage.onload = () => {
-              castDebugLogger.debug(LOG_RECEIVER_TAG, "Image preloaded: " + source);
-              loadRequestData.media.contentUrl = source;
-              resolve(loadRequestData);
-            };
-
-            preloadedImage.onerror = () => {
-              castDebugLogger.error(LOG_RECEIVER_TAG, "Image failed to load: " + source);
-              loadRequestData.media.contentUrl = source;
-              resolve(loadRequestData); // Nếu lỗi, vẫn tiếp tục
-            };
-          });
-        } else {
-          // Nếu không phải ảnh, tải ngay lập tức
-          loadRequestData.media.contentUrl = source;
-          return loadRequestData;
-        }
+        castDebugLogger.debug(LOG_RECEIVER_TAG,
+          "Interceptor received full URL");
+        loadRequestData.media.contentUrl = source;
+        return loadRequestData;
       } else {
-        // Nếu source là ID, lấy thông tin từ MediaFetcher
+        // Fetch the contentUrl if provided an ID or entity URL.
         castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received ID");
         return MediaFetcher.fetchMediaInformationById(sourceId)
-          .then((mediaInformation) => {
-            loadRequestData.media = mediaInformation;
-            return loadRequestData;
-          });
+        .then((mediaInformation) => {
+          loadRequestData.media = mediaInformation;
+
+          // Tải trước hình ảnh.
+          if (mediaInformation.metadata && mediaInformation.metadata.images && mediaInformation.metadata.images.length > 0) {
+            const imageUrl = mediaInformation.metadata.images[0].url;
+            if (imageUrl) {
+              const img = new Image();
+              img.src = imageUrl;
+              img.onload = () => {
+                castDebugLogger.debug(LOG_RECEIVER_TAG, `Image preloaded: ${imageUrl}`);
+              };
+              img.onerror = () => {
+                castDebugLogger.error(LOG_RECEIVER_TAG, `Failed to preload image: ${imageUrl}`);
+              };
+            }
+          }
+
+          return loadRequestData;
+        })
       }
     })
     .catch((errorMessage) => {
       let error = new cast.framework.messages.ErrorData(
-        cast.framework.messages.ErrorType.LOAD_FAILED
-      );
+        cast.framework.messages.ErrorType.LOAD_FAILED);
       error.reason = cast.framework.messages.ErrorReason.INVALID_REQUEST;
       castDebugLogger.error(LOG_RECEIVER_TAG, errorMessage);
       return error;
