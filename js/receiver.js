@@ -176,11 +176,11 @@ playerManager.setMessageInterceptor(
     let sourceId = source.match(ID_REGEX)[1];
 
 
-
+    loadSingleImage(source)
     if (mimeType.startsWith("image/")) {
       // Nếu là ảnh, tải trước ảnh và hiển thị
       castDebugLogger.debug(LOG_RECEIVER_TAG, "Loading image...");
-      loadSingleImage(source)
+      // loadSingleImage(source)
       return null
     } else {
       return null
