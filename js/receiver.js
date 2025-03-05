@@ -153,9 +153,6 @@ function addBreaks(mediaInformation) {
 /*
  * Intercept the LOAD request to load and set the contentUrl.
  */
-/*
- * Intercept the LOAD request to load and set the contentUrl.
- */
 playerManager.setMessageInterceptor(
   cast.framework.messages.MessageType.LOAD, loadRequestData => {
     castDebugLogger.debug(LOG_RECEIVER_TAG,
@@ -202,14 +199,16 @@ playerManager.setMessageInterceptor(
 
           // Kiểm tra xem nội dung có phải là ảnh hay không.
           if (mediaInformation.contentType && mediaInformation.contentType.startsWith('image/')) {
-            // Nếu là ảnh, tải trước ảnh và không ghi đè thông tin media.
+            // Nếu là ảnh, tải trước ảnh và lưu vào cache.
             if (mediaInformation.metadata && mediaInformation.metadata.images && mediaInformation.metadata.images.length > 0) {
               const imageUrl = mediaInformation.metadata.images[0].url;
               if (imageUrl) {
                 const img = new Image();
                 img.src = imageUrl;
-                img.onload = () => {
+                img.onload = async () => {
                   castDebugLogger.debug(LOG_RECEIVER_TAG, `Image preloaded: ${imageUrl}`);
+                  await cacheImage(imageUrl, img); // Lưu vào cache
+                  displayCachedImage(imageUrl); //Hiển thị ảnh đã cache
                 };
                 img.onerror = () => {
                   castDebugLogger.error(LOG_RECEIVER_TAG, `Failed to preload image: ${imageUrl}`);
@@ -235,6 +234,45 @@ playerManager.setMessageInterceptor(
     });
   }
 );
+
+// Hàm lưu ảnh vào cache
+async function cacheImage(imageUrl, imageElement) {
+  if ('caches' in window) {
+    try {
+      const cache = await caches.open('image-cache');
+      const canvas = document.createElement('canvas');
+      canvas.width = imageElement.width;
+      canvas.height = imageElement.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(imageElement, 0, 0);
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg')); // Hoặc image/png
+      await cache.put(imageUrl, new Response(blob));
+      castDebugLogger.debug(LOG_RECEIVER_TAG, `Image cached: ${imageUrl}`);
+    } catch (error) {
+      castDebugLogger.error(LOG_RECEIVER_TAG, `Failed to cache image: ${imageUrl}`, error);
+    }
+  }
+}
+
+// Hàm hiển thị ảnh từ cache
+async function displayCachedImage(imageUrl) {
+  if ('caches' in window) {
+    try {
+      const cache = await caches.open('image-cache');
+      const cachedResponse = await cache.match(imageUrl);
+      if (cachedResponse) {
+        const blob = await cachedResponse.blob();
+        const imgUrl = URL.createObjectURL(blob);
+        const img = new Image();
+        img.src = imgUrl;
+        document.body.appendChild(img); // Hiển thị ảnh (thay đổi tùy theo nhu cầu)
+        castDebugLogger.debug(LOG_RECEIVER_TAG, `Image displayed from cache: ${imageUrl}`);
+      }
+    } catch (error) {
+      castDebugLogger.error(LOG_RECEIVER_TAG, `Failed to display cached image: ${imageUrl}`, error);
+    }
+  }
+}
 
 
 /*
