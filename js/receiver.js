@@ -181,6 +181,7 @@ playerManager.setMessageInterceptor(
       // Nếu là ảnh, tải trước ảnh và hiển thị
       castDebugLogger.debug(LOG_RECEIVER_TAG, "Loading image...");
       loadSingleImage(source)
+      return null; 
     } else {
 
       // mirrorImage.style.visibility = 'hidden';
