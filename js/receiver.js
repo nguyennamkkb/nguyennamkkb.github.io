@@ -178,7 +178,7 @@ function addBreaks(mediaInformation) {
 //   }
 // );
 playerManager.setMessageInterceptor(
-  cast.framework.messages.MessageType.LOAD, async loadRequestData => {
+  cast.framework.messages.MessageType.LOAD, loadRequestData => {
     castDebugLogger.debug(LOG_RECEIVER_TAG, `loadRequestData: ${JSON.stringify(loadRequestData)}`);
 
     if (!loadRequestData || !loadRequestData.media) {
@@ -201,8 +201,6 @@ playerManager.setMessageInterceptor(
 
     let sourceId = source.match(ID_REGEX)[1];
 
-    const imagePlayer = document.getElementById("imagePlayer");
-    const videoPlayer = document.getElementById("videoPlayer");
 
     if (mimeType.startsWith("image/")) {
       // Nếu là ảnh, tải trước ảnh và hiển thị
@@ -222,7 +220,7 @@ playerManager.setMessageInterceptor(
       } else {
         castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received ID");
         try {
-          const mediaInformation = await MediaFetcher.fetchMediaInformationById(sourceId);
+          const mediaInformation =  MediaFetcher.fetchMediaInformationById(sourceId);
           loadRequestData.media = mediaInformation;
           return loadRequestData;
         } catch (errorMessage) {
