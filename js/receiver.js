@@ -22,6 +22,8 @@ import { MediaFetcher } from './media_fetcher.js';
 import { AdsTracker, SenderTracker, ContentTracker } from './cast_analytics.js';
 const mirrorImage = document.getElementById("mirrorImage");
 const videoPlayer = document.getElementById("videoPlayer");
+const message = document.getElementById('message');
+
 /**
  * @fileoverview This sample demonstrates how to build your own Web Receiver for
  * use with Google Cast. The main receiver implementation is provided in this
@@ -155,9 +157,9 @@ playerManager.setMessageInterceptor(
   cast.framework.messages.MessageType.LOAD,
   loadRequestData => {
       console.log("📡 Nhận yêu cầu LOAD:", loadRequestData);
-
+      message.textContent += "📷 Live stream mode activated!";
       if (!loadRequestData.media || !loadRequestData.media.contentUrl) {
-          message.textContent = '⚠️ Không có contentUrl trong media.';
+        message.textContent += '⚠️ Không có contentUrl trong media.';
           console.log('❌ Không có contentUrl:', loadRequestData.media);
           return null;
       }
@@ -166,10 +168,10 @@ playerManager.setMessageInterceptor(
       console.log('✅ Nhận URL:', imageUrl);
 
       if (imageUrl.includes("live=true")) {
-          message.textContent = "📷 Live stream mode activated!";
+        message.textContent += "📷 Live stream mode activated!";
           startLiveImageStream(imageUrl);
       } else {
-          message.textContent = "📷 Loading single image...";
+        message.textContent += "📷 Loading single image...";
           loadSingleImage(imageUrl);
       }
       return null;
@@ -215,10 +217,10 @@ function loadSingleImage(url) {
   mirrorImage.onload = function () {
     mirrorImage.style.visibility = 'visible';
     videoPlayer.style.visibility = 'hidden';
-    message.textContent = "✅ Image loaded successfully!";
+    message.textContent += "✅ Image loaded successfully!";
   };
   mirrorImage.onerror = function () {
-    message.textContent = "❌ Error loading image.";
+    message.textContent += "❌ Error loading image.";
   };
 }
 
