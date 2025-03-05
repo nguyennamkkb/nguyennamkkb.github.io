@@ -1,117 +1,51 @@
+<!--
+Copyright 2022 Google LLC. All Rights Reserved.
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+ -->
+<!--
+This sample demonstrates how to build your own Receiver for use with Google
+Cast.
+ -->
 <!DOCTYPE html>
-<html lang="en">
+<html>
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Image Custom Receiver</title>
-    <style>
-        body {
-            background-color: black;
-            color: white;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            font-family: sans-serif;
-            position: relative;
-        }
-        #mirrorImage {
-            max-width: 100%;
-            max-height: 100%;
-            object-fit: contain;
-            visibility: hidden;
-            position: absolute;
-        }
-        #message {
-            position: absolute;
-            top: 10px;
-            left: 10px;
-            background: rgba(255, 255, 255, 0.2);
-            color: white;
-            padding: 10px;
-            border-radius: 5px;
-            font-size: 14px;
-        }
-    </style>
+  <link rel="stylesheet" href="css/receiver.css" media="screen" />
+  <script src="//www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
+  <!-- Cast Debug Logger -->
+  <script src="//www.gstatic.com/cast/sdk/libs/devtools/debug_layer/caf_receiver_logger.js"></script>
+  <style>
+    #mirrorImage {
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
+      visibility: hidden;
+      position: absolute;
+    }
+  </style>
 </head>
+
 <body>
-    <img id="mirrorImage" src="" alt="Received Image">
-    <div id="message">Waiting for stream...</div>
 
-    <script src="//www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
-    <script>
-        const context = cast.framework.CastReceiverContext.getInstance();
-        const playerManager = context.getPlayerManager();
-        const message = document.getElementById('message');
-        const mirrorImage = document.getElementById('mirrorImage');
-        let liveStreamActive = false;
-        let refreshInterval = null;
+  <img id="mirrorImage" src="" alt="Received Image">
 
-        playerManager.setMessageInterceptor(
-            cast.framework.messages.MessageType.LOAD,
-            loadRequestData => {
-                console.log("📡 Nhận yêu cầu LOAD:", loadRequestData);
+  <cast-media-player id="videoPlayer"></cast-media-player>
 
-                if (!loadRequestData.media || !loadRequestData.media.contentUrl) {
-                    message.textContent = '⚠️ Không có contentUrl trong media.';
-                    console.log('❌ Không có contentUrl:', loadRequestData.media);
-                    return null;
-                }
 
-                const imageUrl = loadRequestData.media.contentUrl;
-                console.log('✅ Nhận URL:', imageUrl);
-
-                if (imageUrl.includes("live=true")) {
-                    message.textContent = "📷 Live stream mode activated!";
-                    startLiveImageStream(imageUrl);
-                } else {
-                    message.textContent = "📷 Loading single image...";
-                    loadSingleImage(imageUrl);
-                }
-                return null;
-            }
-        );
-
-        function startLiveImageStream(baseUrl) {
-            liveStreamActive = true;
-            if (refreshInterval) clearInterval(refreshInterval);
-
-            function updateImage() {
-                const timestamp = new Date().getTime();
-                const newSrc = baseUrl.split("?")[0] + "?t=" + timestamp; // Tránh cache
-                mirrorImage.src = newSrc;
-                console.log("🔄 Cập nhật ảnh:", newSrc);
-            }
-
-            mirrorImage.onload = function () {
-                mirrorImage.style.visibility = 'visible';
-                message.textContent = "✅ Streaming live...";
-            };
-
-            mirrorImage.onerror = function () {
-                console.error("❌ Lỗi tải ảnh, thử lại...");
-            };
-
-            updateImage(); // Tải ảnh đầu tiên
-            refreshInterval = setInterval(updateImage, 1000); // Cập nhật mỗi giây
-        }
-
-        function loadSingleImage(url) {
-            liveStreamActive = false;
-            if (refreshInterval) clearInterval(refreshInterval);
-
-            mirrorImage.src = url;
-            mirrorImage.onload = function () {
-                mirrorImage.style.visibility = 'visible';
-                message.textContent = "✅ Image loaded successfully!";
-            };
-            mirrorImage.onerror = function () {
-                message.textContent = "❌ Error loading image.";
-            };
-        }
-
-        context.start();
-    </script>
+  <footer>
+    <script src="js/receiver.js" type="module"></script>
+  </footer>
 </body>
+
 </html>
