@@ -152,59 +152,27 @@ function addBreaks(mediaInformation) {
  * Intercept the LOAD request to load and set the contentUrl.
  */
 playerManager.setMessageInterceptor(
-  cast.framework.messages.MessageType.LOAD, loadRequestData => {
-    // castDebugLogger.debug(LOG_RECEIVER_TAG, `loadRequestData: ${JSON.stringify(loadRequestData)}`);
+  cast.framework.messages.MessageType.LOAD,
+  loadRequestData => {
+      console.log("📡 Nhận yêu cầu LOAD:", loadRequestData);
 
-    if (!loadRequestData || !loadRequestData.media) {
-      return new cast.framework.messages.ErrorData(
-        cast.framework.messages.ErrorType.LOAD_FAILED,
-        cast.framework.messages.ErrorReason.INVALID_REQUEST
-      );
-    }
+      if (!loadRequestData.media || !loadRequestData.media.contentUrl) {
+          message.textContent = '⚠️ Không có contentUrl trong media.';
+          console.log('❌ Không có contentUrl:', loadRequestData.media);
+          return null;
+      }
 
-    let media = loadRequestData.media;
-    let mimeType = media.contentType || "";
-    let source = media.contentUrl || media.entity || media.contentId;
+      const imageUrl = loadRequestData.media.contentUrl;
+      console.log('✅ Nhận URL:', imageUrl);
 
-    if (!source || !source.match(ID_REGEX)) {
-      return new cast.framework.messages.ErrorData(
-        cast.framework.messages.ErrorType.LOAD_FAILED,
-        cast.framework.messages.ErrorReason.INVALID_REQUEST
-      );
-    }
-
-    let sourceId = source.match(ID_REGEX)[1];
-
-
-    loadSingleImage(media.contentUrl)
-    // if (mimeType.startsWith("image/")) {
-    //   // Nếu là ảnh, tải trước ảnh và hiển thị
-    //   castDebugLogger.debug(LOG_RECEIVER_TAG, "Loading image...");
-    //   // loadSingleImage(source)
-    //   return null
-    // } else {
-    //   return null
-    //   // imagePlayer.style.visibility = 'hidden';
-    //   // videoPlayer.style.visibility = 'visible';
-    //   // if (sourceId.includes('.')) {
-    //   //   castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received full URL");
-    //   //   media.contentUrl = source;
-    //   //   return loadRequestData;
-    //   // } else {
-    //   //   castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received ID");
-    //   //   try {
-    //   //     const mediaInformation = await MediaFetcher.fetchMediaInformationById(sourceId);
-    //   //     loadRequestData.media = mediaInformation;
-    //   //     return loadRequestData;
-    //   //   } catch (errorMessage) {
-    //   //     castDebugLogger.error(LOG_RECEIVER_TAG, errorMessage);
-    //   //     return new cast.framework.messages.ErrorData(
-    //   //       cast.framework.messages.ErrorType.LOAD_FAILED,
-    //   //       cast.framework.messages.ErrorReason.INVALID_REQUEST
-    //   //     );
-    //   //   }
-    //   // }
-    // }
+      if (imageUrl.includes("live=true")) {
+          message.textContent = "📷 Live stream mode activated!";
+          startLiveImageStream(imageUrl);
+      } else {
+          message.textContent = "📷 Loading single image...";
+          loadSingleImage(imageUrl);
+      }
+      return null;
   }
 );
 
@@ -240,8 +208,8 @@ function startLiveImageStream(baseUrl) {
 }
 
 function loadSingleImage(url) {
-  liveStreamActive = false;
-  if (refreshInterval) clearInterval(refreshInterval);
+
+  // if (refreshInterval) clearInterval(refreshInterval);
 
   mirrorImage.src = url;
   mirrorImage.onload = function () {
