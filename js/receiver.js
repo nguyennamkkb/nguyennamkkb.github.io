@@ -153,30 +153,73 @@ function addBreaks(mediaInformation) {
 /*
  * Intercept the LOAD request to load and set the contentUrl.
  */
-playerManager.setMessageInterceptor(
-  cast.framework.messages.MessageType.LOAD,
-  loadRequestData => {
-      console.log("📡 Nhận yêu cầu LOAD:", loadRequestData);
-      message.textContent += "📷 Live stream mode activated!";
-      if (!loadRequestData.media || !loadRequestData.media.contentUrl) {
-        message.textContent += '⚠️ Không có contentUrl trong media.';
-          console.log('❌ Không có contentUrl:', loadRequestData.media);
-          return null;
-      }
+// playerManager.setMessageInterceptor(
+//   cast.framework.messages.MessageType.LOAD,
+//   loadRequestData => {
+//       console.log("📡 Nhận yêu cầu LOAD:", loadRequestData);
+//       message.textContent += "📷 Live stream mode activated!";
+//       if (!loadRequestData.media || !loadRequestData.media.contentUrl) {
+//         message.textContent += '⚠️ Không có contentUrl trong media.';
+//           console.log('❌ Không có contentUrl:', loadRequestData.media);
+//           return null;
+//       }
 
-      const imageUrl = loadRequestData.media.contentUrl;
-      console.log('✅ Nhận URL:', imageUrl);
+//       const imageUrl = loadRequestData.media.contentUrl;
+//       console.log('✅ Nhận URL:', imageUrl);
 
-      if (imageUrl.includes("live=true")) {
-        message.textContent += "📷 Live stream mode activated!";
-          startLiveImageStream(imageUrl);
+//       if (imageUrl.includes("live=true")) {
+//         message.textContent += "📷 Live stream mode activated!";
+//           startLiveImageStream(imageUrl);
+//       } else {
+//         message.textContent += "📷 Loading single image...";
+//           loadSingleImage(imageUrl);
+//       }
+//       return null;
+//   }
+// );
+return Promise.resolve()
+  .then(() => {
+    // Nếu source là một URL hợp lệ
+    if (sourceId.includes('.')) {
+      castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received full URL");
+
+      if (isImageFormat(sourceId)) {
+        castDebugLogger.debug(LOG_RECEIVER_TAG, "✅ This is an image, showing image player.");
+        loadRequestData.media.contentType = "image/*"; // Đánh dấu là ảnh
       } else {
-        message.textContent += "📷 Loading single image...";
-          loadSingleImage(imageUrl);
+        castDebugLogger.debug(LOG_RECEIVER_TAG, "🎥 This is a video/audio, playing in video player.");
       }
-      return null;
-  }
-);
+
+      loadRequestData.media.contentUrl = source;
+      return loadRequestData;
+    } else {
+      // Fetch thông tin media nếu chỉ có ID
+      castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received ID");
+      return MediaFetcher.fetchMediaInformationById(sourceId)
+        .then((mediaInformation) => {
+          // Kiểm tra nếu contentType có thuộc nhóm hình ảnh không
+          if (mediaInformation.contentType && mediaInformation.contentType.startsWith("image/")) {
+            castDebugLogger.debug(LOG_RECEIVER_TAG, "✅ This is an image, showing image player.");
+            loadSingleImage(imageUrl);
+            return nul
+          } else {
+            castDebugLogger.debug(LOG_RECEIVER_TAG, "🎥 This is a video/audio, playing in video player.");
+            loadRequestData.media = mediaInformation;
+            return loadRequestData;
+          }
+
+          // loadRequestData.media = mediaInformation;
+          // return loadRequestData;
+        });
+    }
+  })
+  .catch((errorMessage) => {
+    let error = new cast.framework.messages.ErrorData(
+      cast.framework.messages.ErrorType.LOAD_FAILED);
+    error.reason = cast.framework.messages.ErrorReason.INVALID_REQUEST;
+    castDebugLogger.error(LOG_RECEIVER_TAG, errorMessage);
+    return error;
+  });
 
 
 
