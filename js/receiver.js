@@ -20,7 +20,7 @@ limitations under the License.
 import { CastQueue } from './queuing.js';
 import { MediaFetcher } from './media_fetcher.js';
 import { AdsTracker, SenderTracker, ContentTracker } from './cast_analytics.js';
-const imagePlayer = document.getElementById("mirrorImage");
+const mirrorImage = document.getElementById("mirrorImage");
 const videoPlayer = document.getElementById("videoPlayer");
 /**
  * @fileoverview This sample demonstrates how to build your own Web Receiver for
@@ -54,20 +54,20 @@ const LOG_RECEIVER_TAG = 'Receiver';
  * Uncomment below line to enable debug logger, show a 'DEBUG MODE' tag at
  * top left corner and show debug overlay.
  */
- context.addEventListener(cast.framework.system.EventType.READY, () => {
-  if (!castDebugLogger.debugOverlayElement_) {
-    /**
-     *  Enable debug logger and show a 'DEBUG MODE' tag at
-     *  top left corner.
-     */
-      castDebugLogger.setEnabled(true);
+//  context.addEventListener(cast.framework.system.EventType.READY, () => {
+//   if (!castDebugLogger.debugOverlayElement_) {
+//     /**
+//      *  Enable debug logger and show a 'DEBUG MODE' tag at
+//      *  top left corner.
+//      */
+//       castDebugLogger.setEnabled(true);
 
-    /**
-     * Show debug overlay.
-     */
-      castDebugLogger.showDebugLogs(true);
-  }
-});
+//     /**
+//      * Show debug overlay.
+//      */
+//       castDebugLogger.showDebugLogs(true);
+//   }
+// });
 
 /*
  * Set verbosity level for Core events.
@@ -151,83 +151,60 @@ function addBreaks(mediaInformation) {
 /*
  * Intercept the LOAD request to load and set the contentUrl.
  */
-// playerManager.setMessageInterceptor(
-//   cast.framework.messages.MessageType.LOAD,  loadRequestData => {
-
-//     if (!loadRequestData || !loadRequestData.media) {
-//       return new cast.framework.messages.ErrorData(
-//         cast.framework.messages.ErrorType.LOAD_FAILED,
-//         cast.framework.messages.ErrorReason.INVALID_REQUEST
-//       );
-//     }
-
-//     let media = loadRequestData.media;
-//     let mimeType = media.contentType || "";
-//     let source = media.contentUrl || media.entity || media.contentId;
-// ``
-//     if (!source || !source.match(ID_REGEX)) {
-//       return new cast.framework.messages.ErrorData(
-//         cast.framework.messages.ErrorType.LOAD_FAILED,
-//         cast.framework.messages.ErrorReason.INVALID_REQUEST
-//       );
-//     }
-
-//     let sourceId = source.match(ID_REGEX)[1];
-
-
-
-//     if (mimeType.startsWith("image/")) {
-//       // Nếu là ảnh, tải trước ảnh và hiển thị
-//       castDebugLogger.debug(LOG_RECEIVER_TAG, "Loading image...");
-//       loadSingleImage(media.contentUrl)
-//       return null; 
-//     } else {
-//       return null; 
-//       // mirrorImage.style.visibility = 'hidden';
-//       // videoPlayer.style.visibility = 'visible';
-//       // if (sourceId.includes('.')) {
-//       //   castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received full URL");
-//       //   media.contentUrl = source;
-//       //   return loadRequestData;
-//       // } else {
-//       //   castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received ID");
-//       //   try {
-//       //     const mediaInformation =  MediaFetcher.fetchMediaInformationById(sourceId);
-//       //     loadRequestData.media = mediaInformation;
-//       //     return loadRequestData;
-//       //   } catch (errorMessage) {
-//       //     castDebugLogger.error(LOG_RECEIVER_TAG, errorMessage);
-//       //     return new cast.framework.messages.ErrorData(
-//       //       cast.framework.messages.ErrorType.LOAD_FAILED,
-//       //       cast.framework.messages.ErrorReason.INVALID_REQUEST
-//       //     );
-//       //   }
-//       // }
-//     }
-//   }
-// );
 playerManager.setMessageInterceptor(
-  cast.framework.messages.MessageType.LOAD,
-  loadRequestData => {
-      console.log("📡 Nhận yêu cầu LOAD:", loadRequestData);
+  cast.framework.messages.MessageType.LOAD, loadRequestData => {
+    castDebugLogger.debug(LOG_RECEIVER_TAG, `loadRequestData: ${JSON.stringify(loadRequestData)}`);
 
-      if (!loadRequestData.media || !loadRequestData.media.contentUrl) {
-          message.textContent = '⚠️ Không có contentUrl trong media.';
-          console.log('❌ Không có contentUrl:', loadRequestData.media);
-          return null;
-      }
+    if (!loadRequestData || !loadRequestData.media) {
+      return new cast.framework.messages.ErrorData(
+        cast.framework.messages.ErrorType.LOAD_FAILED,
+        cast.framework.messages.ErrorReason.INVALID_REQUEST
+      );
+    }
 
-      const imageUrl = loadRequestData.media.contentUrl;
-      console.log('✅ Nhận URL:', imageUrl);
+    let media = loadRequestData.media;
+    let mimeType = media.contentType || "";
+    let source = media.contentUrl || media.entity || media.contentId;
 
-      if (imageUrl.includes("live=true")) {
-          message.textContent = "📷 Live stream mode activated!";
-          startLiveImageStream(imageUrl);
-      } else {
-          message.textContent = "📷 Loading single image...";
-          loadSingleImage(imageUrl);
-      }
-      return null;
+    if (!source || !source.match(ID_REGEX)) {
+      return new cast.framework.messages.ErrorData(
+        cast.framework.messages.ErrorType.LOAD_FAILED,
+        cast.framework.messages.ErrorReason.INVALID_REQUEST
+      );
+    }
+
+    let sourceId = source.match(ID_REGEX)[1];
+
+
+
+    if (mimeType.startsWith("image/")) {
+      // Nếu là ảnh, tải trước ảnh và hiển thị
+      castDebugLogger.debug(LOG_RECEIVER_TAG, "Loading image...");
+      loadSingleImage(source)
+      return null
+    } else {
+      return null
+      // imagePlayer.style.visibility = 'hidden';
+      // videoPlayer.style.visibility = 'visible';
+      // if (sourceId.includes('.')) {
+      //   castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received full URL");
+      //   media.contentUrl = source;
+      //   return loadRequestData;
+      // } else {
+      //   castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received ID");
+      //   try {
+      //     const mediaInformation = await MediaFetcher.fetchMediaInformationById(sourceId);
+      //     loadRequestData.media = mediaInformation;
+      //     return loadRequestData;
+      //   } catch (errorMessage) {
+      //     castDebugLogger.error(LOG_RECEIVER_TAG, errorMessage);
+      //     return new cast.framework.messages.ErrorData(
+      //       cast.framework.messages.ErrorType.LOAD_FAILED,
+      //       cast.framework.messages.ErrorReason.INVALID_REQUEST
+      //     );
+      //   }
+      // }
+    }
   }
 );
 
@@ -329,6 +306,6 @@ castReceiverOptions.supportedCommands =
  * receiver app to manage and add content to the playback queue. Uncomment the
  * line below to enable the queue.
  */
-// castReceiverOptions.queue = new CastQueue();
+castReceiverOptions.queue = new CastQueue();
 
 context.start(castReceiverOptions);
