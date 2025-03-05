@@ -152,27 +152,58 @@ function addBreaks(mediaInformation) {
  * Intercept the LOAD request to load and set the contentUrl.
  */
 playerManager.setMessageInterceptor(
-  cast.framework.messages.MessageType.LOAD,
-  loadRequestData => {
-      console.log("📡 Nhận yêu cầu LOAD:", loadRequestData);
+  cast.framework.messages.MessageType.LOAD,  loadRequestData => {
 
-      if (!loadRequestData.media || !loadRequestData.media.contentUrl) {
-          message.textContent = '⚠️ Không có contentUrl trong media.';
-          console.log('❌ Không có contentUrl:', loadRequestData.media);
-          return null;
-      }
+    if (!loadRequestData || !loadRequestData.media) {
+      return new cast.framework.messages.ErrorData(
+        cast.framework.messages.ErrorType.LOAD_FAILED,
+        cast.framework.messages.ErrorReason.INVALID_REQUEST
+      );
+    }
 
-      const imageUrl = loadRequestData.media.contentUrl;
-      console.log('✅ Nhận URL:', imageUrl);
+    let media = loadRequestData.media;
+    let mimeType = media.contentType || "";
+    let source = media.contentUrl || media.entity || media.contentId;
+``
+    if (!source || !source.match(ID_REGEX)) {
+      return new cast.framework.messages.ErrorData(
+        cast.framework.messages.ErrorType.LOAD_FAILED,
+        cast.framework.messages.ErrorReason.INVALID_REQUEST
+      );
+    }
 
-      if (imageUrl.includes("live=true")) {
-          message.textContent = "📷 Live stream mode activated!";
-          startLiveImageStream(imageUrl);
-      } else {
-        // message.textContent = "📷 Loading single image...";
-        loadSingleImage(imageUrl);
-      }
-      return null;
+    let sourceId = source.match(ID_REGEX)[1];
+
+
+
+    if (mimeType.startsWith("image/")) {
+      // Nếu là ảnh, tải trước ảnh và hiển thị
+      castDebugLogger.debug(LOG_RECEIVER_TAG, "Loading image...");
+      loadSingleImage(media.contentUrl)
+      return null; 
+    } else {
+      return null; 
+      // mirrorImage.style.visibility = 'hidden';
+      // videoPlayer.style.visibility = 'visible';
+      // if (sourceId.includes('.')) {
+      //   castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received full URL");
+      //   media.contentUrl = source;
+      //   return loadRequestData;
+      // } else {
+      //   castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received ID");
+      //   try {
+      //     const mediaInformation =  MediaFetcher.fetchMediaInformationById(sourceId);
+      //     loadRequestData.media = mediaInformation;
+      //     return loadRequestData;
+      //   } catch (errorMessage) {
+      //     castDebugLogger.error(LOG_RECEIVER_TAG, errorMessage);
+      //     return new cast.framework.messages.ErrorData(
+      //       cast.framework.messages.ErrorType.LOAD_FAILED,
+      //       cast.framework.messages.ErrorReason.INVALID_REQUEST
+      //     );
+      //   }
+      // }
+    }
   }
 );
 
