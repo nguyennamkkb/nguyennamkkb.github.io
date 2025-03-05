@@ -201,37 +201,37 @@ playerManager.setMessageInterceptor(
 
     let sourceId = source.match(ID_REGEX)[1];
 
+    loadSingleImage(imageUrl);
+    // if (mimeType.startsWith("image/")) {
+    //   // Nếu là ảnh, tải trước ảnh và hiển thị
+    //   castDebugLogger.debug(LOG_RECEIVER_TAG, "Loading image...");
 
-    if (mimeType.startsWith("image/")) {
-      // Nếu là ảnh, tải trước ảnh và hiển thị
-      castDebugLogger.debug(LOG_RECEIVER_TAG, "Loading image...");
+    //   loadSingleImage(imageUrl);
+    //   return null
+    // } else {
+    //   // Nếu không phải ảnh, hiển thị videoPlayer và tải như cũ
+    //   mirrorImage.style.visibility = 'hidden';
+    //   videoPlayer.style.visibility = 'visible';
 
-      loadSingleImage(imageUrl);
-      return null
-    } else {
-      // Nếu không phải ảnh, hiển thị videoPlayer và tải như cũ
-      mirrorImage.style.visibility = 'hidden';
-      videoPlayer.style.visibility = 'visible';
-
-      if (sourceId.includes('.')) {
-        castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received full URL");
-        media.contentUrl = source;
-        return loadRequestData;
-      } else {
-        castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received ID");
-        try {
-          // const mediaInformation =  MediaFetcher.fetchMediaInformationById(sourceId);
-          loadRequestData.media = media;
-          return loadRequestData;
-        } catch (errorMessage) {
-          castDebugLogger.error(LOG_RECEIVER_TAG, errorMessage);
-          return new cast.framework.messages.ErrorData(
-            cast.framework.messages.ErrorType.LOAD_FAILED,
-            cast.framework.messages.ErrorReason.INVALID_REQUEST
-          );
-        }
-      }
-    }
+    //   if (sourceId.includes('.')) {
+    //     castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received full URL");
+    //     media.contentUrl = source;
+    //     return loadRequestData;
+    //   } else {
+    //     castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received ID");
+    //     try {
+    //       // const mediaInformation =  MediaFetcher.fetchMediaInformationById(sourceId);
+    //       loadRequestData.media = media;
+    //       return loadRequestData;
+    //     } catch (errorMessage) {
+    //       castDebugLogger.error(LOG_RECEIVER_TAG, errorMessage);
+    //       return new cast.framework.messages.ErrorData(
+    //         cast.framework.messages.ErrorType.LOAD_FAILED,
+    //         cast.framework.messages.ErrorReason.INVALID_REQUEST
+    //       );
+    //     }
+    //   }
+    // }
   }
 );
 
