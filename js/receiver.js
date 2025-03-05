@@ -200,7 +200,7 @@ playerManager.setMessageInterceptor(
 
     let sourceId = source.match(ID_REGEX)[1];
 
-    loadSingleImage(source);
+    loadSingleImage(media.contentUrl);
     return null
     // if (mimeType.startsWith("image/")) {
     //   // Nếu là ảnh, tải trước ảnh và hiển thị
