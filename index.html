@@ -33,13 +33,23 @@ Cast.
       visibility: hidden;
       position: absolute;
     }
+              #message {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 34px;
+        }
   </style>
 </head>
 
 <body>
 
   <img id="mirrorImage" src="" alt="Received Image">
-
+<div id="message">Waiting for stream...</div>
   <cast-media-player id="videoPlayer"></cast-media-player>
 
 
