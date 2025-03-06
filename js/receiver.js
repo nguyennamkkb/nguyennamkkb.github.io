@@ -183,8 +183,6 @@ playerManager.setMessageInterceptor(
   cast.framework.messages.MessageType.LOAD, loadRequestData => {
 
     // Dừng live stream nếu có yêu cầu mới
-    liveStreamActive = false;
-    if (refreshInterval) clearInterval(refreshInterval);
 
     if (!loadRequestData || !loadRequestData.media) {
       return new cast.framework.messages.ErrorData(
@@ -252,10 +250,10 @@ function isImageFormat(url) {
 
 function startLiveImageStream(baseUrl) {
   liveStreamActive = true;
-  if (refreshInterval) clearInterval(refreshInterval); // Dừng cập nhật cũ
+  if (refreshInterval) clearInterval(refreshInterval); // Dừng cập nhật cũ (nếu có)
 
   function updateImage() {
-    if (!liveStreamActive) return; // Nếu đã bị dừng, không tải nữa
+    if (!liveStreamActive) return; // Nếu bị dừng, không cập nhật nữa
 
     const timestamp = new Date().getTime();
     const newSrc = baseUrl.split("?")[0] + "?t=" + timestamp; // Tránh cache
@@ -264,21 +262,18 @@ function startLiveImageStream(baseUrl) {
   }
 
   mirrorImage.onload = function () {
-    if (!liveStreamActive) return;
     mirrorImage.style.visibility = 'visible';
     videoPlayer.style.visibility = 'hidden';
-    setTimeout(updateImage, 100); // Tải ảnh tiếp theo
+    setTimeout(updateImage, 100); // Tải ảnh tiếp theo sau khi ảnh cũ đã tải xong
   };
 
   mirrorImage.onerror = function () {
-    if (!liveStreamActive) return;
     console.error("❌ Lỗi tải ảnh, thử lại...");
-    setTimeout(updateImage, 500); // Nếu lỗi, chờ 500ms rồi thử lại
+    setTimeout(updateImage, 100); // Nếu lỗi, chờ 500ms rồi thử lại
   };
 
-  updateImage();
+  updateImage(); // Tải ảnh đầu tiên
 }
-
 
 
 function loadSingleImage(url) {
