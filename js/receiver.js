@@ -200,9 +200,7 @@ playerManager.setMessageInterceptor(
     }
 
     let sourceId = source.match(ID_REGEX)[1];
-    mirrorImage.style.visibility = 'hidden';
     if (mimeType.startsWith("image/")) {
-      
       if (source.includes("live=true")) {
         startLiveImageStream(source);
       } else {
@@ -214,8 +212,8 @@ playerManager.setMessageInterceptor(
       liveStreamActive = false
       clearInterval(refreshInterval)
       // Nếu không phải ảnh, hiển thị videoPlayer và tải như cũ
-      
       videoPlayer.style.visibility = 'visible';
+      mirrorImage.style.visibility = 'hidden';
       stopLiveImageStream();
       if (sourceId.includes('.')) {
         castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received full URL");
