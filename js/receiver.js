@@ -258,10 +258,9 @@ function startLiveImageStream(baseUrl) {
   }
 
   mirrorImage.onload = function () {
-    if (mirrorImage.style.visibility != 'visible') {
-      videoPlayer.style.visibility = 'hidden';
-      mirrorImage.style.visibility = 'visible';
-    }
+    
+    videoPlayer.style.visibility = 'hidden';
+    mirrorImage.style.visibility = 'visible';
   };
 
   mirrorImage.onerror = function () {
@@ -278,10 +277,8 @@ function loadSingleImage(url) {
 
   mirrorImage.src = url;
   mirrorImage.onload = function () {
-    if (mirrorImage.style.visibility != 'visible') {
-      videoPlayer.style.visibility = 'hidden';
-      mirrorImage.style.visibility = 'visible';
-    }
+    videoPlayer.style.visibility = 'hidden';
+    mirrorImage.style.visibility = 'visible';
     // message.textContent += "✅ Image loaded successfully!";
   };
   mirrorImage.onerror = function () {
