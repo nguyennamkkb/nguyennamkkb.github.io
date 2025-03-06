@@ -200,7 +200,9 @@ playerManager.setMessageInterceptor(
     }
 
     let sourceId = source.match(ID_REGEX)[1];
+
     if (mimeType.startsWith("image/")) {
+
       if (source.includes("live=true")) {
         startLiveImageStream(source);
       } else {
@@ -212,9 +214,9 @@ playerManager.setMessageInterceptor(
       liveStreamActive = false
       clearInterval(refreshInterval)
       // Nếu không phải ảnh, hiển thị videoPlayer và tải như cũ
-      videoPlayer.style.display = 'block';
-      mirrorImage.style.display = 'none';
-      stopLiveImageStream();
+      mirrorImage.style.visibility = 'hidden';
+      videoPlayer.style.visibility = 'visible';
+
       if (sourceId.includes('.')) {
         castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received full URL");
         media.contentUrl = source;
@@ -256,8 +258,8 @@ function startLiveImageStream(baseUrl) {
   }
 
   mirrorImage.onload = function () {
-    mirrorImage.style.display = 'block';
-    videoPlayer.style.display = 'none';
+    mirrorImage.style.visibility = 'visible';
+    videoPlayer.style.visibility = 'hidden';
   };
 
   mirrorImage.onerror = function () {
@@ -274,21 +276,13 @@ function loadSingleImage(url) {
 
   mirrorImage.src = url;
   mirrorImage.onload = function () {
-    mirrorImage.style.display = 'block';
-    videoPlayer.style.display = 'none';
+    mirrorImage.style.visibility = 'visible';
+    videoPlayer.style.visibility = 'hidden';
     // message.textContent += "✅ Image loaded successfully!";
   };
   mirrorImage.onerror = function () {
     // message.textContent += "❌ Error loading image.";
   };
-}
-
-function stopLiveImageStream() {
-  liveStreamActive = false;
-  if (refreshInterval) {
-      clearInterval(refreshInterval);
-      refreshInterval = null;
-  }
 }
 
 /*
