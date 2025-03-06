@@ -202,6 +202,10 @@ playerManager.setMessageInterceptor(
 
     let sourceId = source.match(ID_REGEX)[1];
 
+    mirrorImage.style.visibility = 'hidden';
+    videoPlayer.style.visibility = 'visible';
+    liveStreamActive = false
+    clearInterval(refreshInterval)
 
     if (mimeType.startsWith("image/")) {
 
@@ -268,7 +272,7 @@ function startLiveImageStream(baseUrl) {
   };
 
   updateImage(); // Tải ảnh đầu tiên
-  refreshInterval = setInterval(updateImage, 0); // Cập nhật mỗi giây
+  refreshInterval = setInterval(updateImage, 200); // Cập nhật mỗi giây
 }
 
 function loadSingleImage(url) {
