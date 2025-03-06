@@ -182,6 +182,10 @@ function addBreaks(mediaInformation) {
 playerManager.setMessageInterceptor(
   cast.framework.messages.MessageType.LOAD, loadRequestData => {
 
+    // Dừng live stream nếu có yêu cầu mới
+    liveStreamActive = false;
+    if (refreshInterval) clearInterval(refreshInterval);
+
     if (!loadRequestData || !loadRequestData.media) {
       return new cast.framework.messages.ErrorData(
         cast.framework.messages.ErrorType.LOAD_FAILED,
