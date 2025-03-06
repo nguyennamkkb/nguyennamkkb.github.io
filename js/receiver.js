@@ -188,7 +188,6 @@ playerManager.setMessageInterceptor(
         cast.framework.messages.ErrorReason.INVALID_REQUEST
       );
     }
-    message.textContent = "2222222222";
     let media = loadRequestData.media;
     let mimeType = media.contentType || "";
     let source = media.contentUrl || media.entity || media.contentId;
@@ -201,9 +200,9 @@ playerManager.setMessageInterceptor(
     }
 
     let sourceId = source.match(ID_REGEX)[1];
-
+    mirrorImage.style.visibility = 'hidden';
     if (mimeType.startsWith("image/")) {
-
+      videoPlayer.style.visibility = 'hidden';
       if (source.includes("live=true")) {
         startLiveImageStream(source);
       } else {
@@ -215,9 +214,9 @@ playerManager.setMessageInterceptor(
       liveStreamActive = false
       clearInterval(refreshInterval)
       // Nếu không phải ảnh, hiển thị videoPlayer và tải như cũ
-      mirrorImage.style.visibility = 'hidden';
+      
       videoPlayer.style.visibility = 'visible';
-
+      stopLiveImageStream();
       if (sourceId.includes('.')) {
         castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received full URL");
         media.contentUrl = source;
@@ -260,7 +259,6 @@ function startLiveImageStream(baseUrl) {
 
   mirrorImage.onload = function () {
     mirrorImage.style.visibility = 'visible';
-    videoPlayer.style.visibility = 'hidden';
   };
 
   mirrorImage.onerror = function () {
@@ -278,12 +276,19 @@ function loadSingleImage(url) {
   mirrorImage.src = url;
   mirrorImage.onload = function () {
     mirrorImage.style.visibility = 'visible';
-    videoPlayer.style.visibility = 'hidden';
-    message.textContent += "✅ Image loaded successfully!";
+    // message.textContent += "✅ Image loaded successfully!";
   };
   mirrorImage.onerror = function () {
-    message.textContent += "❌ Error loading image.";
+    // message.textContent += "❌ Error loading image.";
   };
+}
+
+function stopLiveImageStream() {
+  liveStreamActive = false;
+  if (refreshInterval) {
+      clearInterval(refreshInterval);
+      refreshInterval = null;
+  }
 }
 
 /*
