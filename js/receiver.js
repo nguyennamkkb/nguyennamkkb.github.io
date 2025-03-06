@@ -267,7 +267,7 @@ function startLiveImageStream(baseUrl) {
 
   mirrorImage.onerror = function () {
     console.error("❌ Lỗi tải ảnh, thử lại...");
-    setTimeout(updateImage, 500); // Nếu lỗi, chờ 500ms rồi thử lại
+    setTimeout(updateImage, 100); // Nếu lỗi, chờ 500ms rồi thử lại
   };
 
   updateImage(); // Tải ảnh đầu tiên
