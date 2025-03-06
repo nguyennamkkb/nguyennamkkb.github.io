@@ -202,7 +202,7 @@ playerManager.setMessageInterceptor(
     let sourceId = source.match(ID_REGEX)[1];
     mirrorImage.style.visibility = 'hidden';
     if (mimeType.startsWith("image/")) {
-      videoPlayer.style.visibility = 'hidden';
+      
       if (source.includes("live=true")) {
         startLiveImageStream(source);
       } else {
@@ -258,7 +258,10 @@ function startLiveImageStream(baseUrl) {
   }
 
   mirrorImage.onload = function () {
-    mirrorImage.style.visibility = 'visible';
+    if (mirrorImage.style.visibility != 'visible') {
+      videoPlayer.style.visibility = 'hidden';
+      mirrorImage.style.visibility = 'visible';
+    }
   };
 
   mirrorImage.onerror = function () {
@@ -275,7 +278,10 @@ function loadSingleImage(url) {
 
   mirrorImage.src = url;
   mirrorImage.onload = function () {
-    mirrorImage.style.visibility = 'visible';
+    if (mirrorImage.style.visibility != 'visible') {
+      videoPlayer.style.visibility = 'hidden';
+      mirrorImage.style.visibility = 'visible';
+    }
     // message.textContent += "✅ Image loaded successfully!";
   };
   mirrorImage.onerror = function () {
