@@ -267,7 +267,7 @@ function startLiveImageStream(baseUrl) {
   };
 
   updateImage(); // Tải ảnh đầu tiên
-  refreshInterval = setInterval(updateImage, 100); // Cập nhật mỗi giây
+  refreshInterval = setInterval(updateImage, 50); // Cập nhật mỗi giây
 }
 
 function loadSingleImage(url) {
