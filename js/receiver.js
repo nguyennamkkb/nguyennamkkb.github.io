@@ -23,6 +23,8 @@ import { AdsTracker, SenderTracker, ContentTracker } from './cast_analytics.js';
 const mirrorImage = document.getElementById("mirrorImage");
 const videoPlayer = document.getElementById("videoPlayer");
 const message = document.getElementById('message');
+var liveStreamActive = false;
+var refreshInterval = null;
 
 /**
  * @fileoverview This sample demonstrates how to build your own Web Receiver for
@@ -202,10 +204,13 @@ playerManager.setMessageInterceptor(
 
 
     if (mimeType.startsWith("image/")) {
-      // Nếu là ảnh, tải trước ảnh và hiển thị
-      castDebugLogger.debug(LOG_RECEIVER_TAG, "Loading image...");
 
-      loadSingleImage(source);
+      if (source.includes("live=true")) {
+        startLiveImageStream(source);
+      } else {
+        loadSingleImage(source);
+
+      }
       return null
     } else {
       // Nếu không phải ảnh, hiển thị videoPlayer và tải như cũ
@@ -254,7 +259,8 @@ function startLiveImageStream(baseUrl) {
 
   mirrorImage.onload = function () {
     mirrorImage.style.visibility = 'visible';
-    message.textContent = "✅ Streaming live...";
+    videoPlayer.style.visibility = 'hidden';
+
   };
 
   mirrorImage.onerror = function () {
@@ -262,12 +268,12 @@ function startLiveImageStream(baseUrl) {
   };
 
   updateImage(); // Tải ảnh đầu tiên
-  refreshInterval = setInterval(updateImage, 1000); // Cập nhật mỗi giây
+  refreshInterval = setInterval(updateImage, 200); // Cập nhật mỗi giây
 }
 
 function loadSingleImage(url) {
-
-  // if (refreshInterval) clearInterval(refreshInterval);
+  liveStreamActive = false;
+  if (refreshInterval) clearInterval(refreshInterval);
 
   mirrorImage.src = url;
   mirrorImage.onload = function () {
