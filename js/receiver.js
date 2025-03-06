@@ -212,8 +212,8 @@ playerManager.setMessageInterceptor(
       liveStreamActive = false
       clearInterval(refreshInterval)
       // Nếu không phải ảnh, hiển thị videoPlayer và tải như cũ
-      videoPlayer.style.visibility = 'visible';
-      mirrorImage.style.visibility = 'hidden';
+      videoPlayer.style.display = 'block';
+      mirrorImage.style.display = 'none';
       stopLiveImageStream();
       if (sourceId.includes('.')) {
         castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received full URL");
@@ -256,9 +256,8 @@ function startLiveImageStream(baseUrl) {
   }
 
   mirrorImage.onload = function () {
-    
-    videoPlayer.style.visibility = 'hidden';
-    mirrorImage.style.visibility = 'visible';
+    mirrorImage.style.display = 'block';
+    videoPlayer.style.display = 'none';
   };
 
   mirrorImage.onerror = function () {
@@ -275,8 +274,8 @@ function loadSingleImage(url) {
 
   mirrorImage.src = url;
   mirrorImage.onload = function () {
-    videoPlayer.style.visibility = 'hidden';
-    mirrorImage.style.visibility = 'visible';
+    mirrorImage.style.display = 'block';
+    videoPlayer.style.display = 'none';
     // message.textContent += "✅ Image loaded successfully!";
   };
   mirrorImage.onerror = function () {
