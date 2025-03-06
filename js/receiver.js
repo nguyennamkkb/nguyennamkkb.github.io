@@ -252,10 +252,10 @@ function isImageFormat(url) {
 
 function startLiveImageStream(baseUrl) {
   liveStreamActive = true;
-  if (refreshInterval) clearInterval(refreshInterval); // Dừng cập nhật cũ (nếu có)
+  if (refreshInterval) clearInterval(refreshInterval); // Dừng cập nhật cũ
 
   function updateImage() {
-    if (!liveStreamActive) return; // Nếu bị dừng, không cập nhật nữa
+    if (!liveStreamActive) return; // Nếu đã bị dừng, không tải nữa
 
     const timestamp = new Date().getTime();
     const newSrc = baseUrl.split("?")[0] + "?t=" + timestamp; // Tránh cache
@@ -264,18 +264,21 @@ function startLiveImageStream(baseUrl) {
   }
 
   mirrorImage.onload = function () {
+    if (!liveStreamActive) return;
     mirrorImage.style.visibility = 'visible';
     videoPlayer.style.visibility = 'hidden';
-    setTimeout(updateImage, 100); // Tải ảnh tiếp theo sau khi ảnh cũ đã tải xong
+    setTimeout(updateImage, 100); // Tải ảnh tiếp theo
   };
 
   mirrorImage.onerror = function () {
+    if (!liveStreamActive) return;
     console.error("❌ Lỗi tải ảnh, thử lại...");
-    setTimeout(updateImage, 100); // Nếu lỗi, chờ 500ms rồi thử lại
+    setTimeout(updateImage, 500); // Nếu lỗi, chờ 500ms rồi thử lại
   };
 
-  updateImage(); // Tải ảnh đầu tiên
+  updateImage();
 }
+
 
 
 function loadSingleImage(url) {
