@@ -202,11 +202,6 @@ playerManager.setMessageInterceptor(
 
     let sourceId = source.match(ID_REGEX)[1];
 
-    mirrorImage.style.visibility = 'hidden';
-    videoPlayer.style.visibility = 'visible';
-    liveStreamActive = false
-    clearInterval(refreshInterval)
-
     if (mimeType.startsWith("image/")) {
 
       if (source.includes("live=true")) {
@@ -217,6 +212,8 @@ playerManager.setMessageInterceptor(
       }
       return null
     } else {
+      liveStreamActive = false
+      clearInterval(refreshInterval)
       // Nếu không phải ảnh, hiển thị videoPlayer và tải như cũ
       mirrorImage.style.visibility = 'hidden';
       videoPlayer.style.visibility = 'visible';
@@ -264,7 +261,6 @@ function startLiveImageStream(baseUrl) {
   mirrorImage.onload = function () {
     mirrorImage.style.visibility = 'visible';
     videoPlayer.style.visibility = 'hidden';
-
   };
 
   mirrorImage.onerror = function () {
