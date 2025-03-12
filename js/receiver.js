@@ -343,6 +343,6 @@ castReceiverOptions.supportedCommands =
  * receiver app to manage and add content to the playback queue. Uncomment the
  * line below to enable the queue.
  */
-castReceiverOptions.queue = new CastQueue();
+//castReceiverOptions.queue = new CastQueue();
 
 context.start(castReceiverOptions);
