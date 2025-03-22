@@ -25,6 +25,7 @@ const videoPlayer = document.getElementById("videoPlayer");
 const message = document.getElementById('message');
 var liveStreamActive = false;
 var refreshInterval = null;
+var imageErrorCnt = 20
 
 /**
  * @fileoverview This sample demonstrates how to build your own Web Receiver for
@@ -225,17 +226,11 @@ playerManager.setMessageInterceptor(
         return loadRequestData;
       } else {
         castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received ID");
-        try {
-          // const mediaInformation =  MediaFetcher.fetchMediaInformationById(sourceId);
-          loadRequestData.media = media;
+        return MediaFetcher.fetchMediaInformationById(sourceId)
+        .then((mediaInformation) => {
+          loadRequestData.media = mediaInformation;
           return loadRequestData;
-        } catch (errorMessage) {
-          castDebugLogger.error(LOG_RECEIVER_TAG, errorMessage);
-          return new cast.framework.messages.ErrorData(
-            cast.framework.messages.ErrorType.LOAD_FAILED,
-            cast.framework.messages.ErrorReason.INVALID_REQUEST
-          );
-        }
+        })
       }
     }
   }
@@ -269,7 +264,17 @@ function startLiveImageStream(baseUrl) {
 
   mirrorImage.onerror = function () {
     console.error("❌ Lỗi tải ảnh, thử lại...");
-    setTimeout(updateImage, 100); // Nếu lỗi, chờ 500ms rồi thử lại
+    imageErrorCnt --
+    if (imageErrorCnt > 0) {
+      setTimeout(updateImage, 100); // Nếu lỗi, chờ 500ms rồi thử lại
+    }else{
+      imageErrorCnt = 20
+      mirrorImage.style.visibility = 'hidden';
+      videoPlayer.style.visibility = 'visible';
+      liveStreamActive = false;
+      clearInterval(refreshInterval)
+    }
+    
   };
 
   updateImage(); // Tải ảnh đầu tiên
@@ -343,6 +348,6 @@ castReceiverOptions.supportedCommands =
  * receiver app to manage and add content to the playback queue. Uncomment the
  * line below to enable the queue.
  */
-//castReceiverOptions.queue = new CastQueue();
+castReceiverOptions.queue = new CastQueue();
 
 context.start(castReceiverOptions);
