@@ -273,7 +273,7 @@ function startLiveImageStream(baseUrl) {
       videoPlayer.style.visibility = 'visible';
       liveStreamActive = false;
       clearInterval(refreshInterval)
-      playerManager.stop()
+      context.stop();
     }
     
   };
