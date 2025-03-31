@@ -259,7 +259,7 @@ function startLiveImageStream(baseUrl) {
   mirrorImage.onload = function () {
     mirrorImage.style.visibility = 'visible';
     videoPlayer.style.visibility = 'hidden';
-    setTimeout(updateImage, 100); // Tải ảnh tiếp theo sau khi ảnh cũ đã tải xong
+    setTimeout(updateImage, 120); // Tải ảnh tiếp theo sau khi ảnh cũ đã tải xong
   };
 
   mirrorImage.onerror = function () {
