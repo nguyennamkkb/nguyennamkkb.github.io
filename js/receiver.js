@@ -259,7 +259,7 @@ function startLiveImageStream(baseUrl) {
   mirrorImage.onload = function () {
     mirrorImage.style.visibility = 'visible';
     videoPlayer.style.visibility = 'hidden';
-    playerManager.stop();
+    playerManager.start();
     setTimeout(updateImage, 120); // Tải ảnh tiếp theo sau khi ảnh cũ đã tải xong
   };
 
@@ -271,7 +271,7 @@ function startLiveImageStream(baseUrl) {
     }else{
       imageErrorCnt = 20
       mirrorImage.style.visibility = 'hidden';
-      videoPlayer.style.visibility = 'visible';
+      videoPlayer.style.visibility = 'hidden';
       liveStreamActive = false;
       clearInterval(refreshInterval)
       playerManager.stop();
