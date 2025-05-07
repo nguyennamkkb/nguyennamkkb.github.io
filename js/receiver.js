@@ -247,19 +247,13 @@ function startLiveImageStream(baseUrl) {
   liveStreamActive = true;
   if (refreshInterval) clearInterval(refreshInterval); // Dừng cập nhật cũ (nếu có)
     // Cập nhật trạng thái "Đang phát" cho Chromecast
-  playerManager.setMediaPlaybackInfo({
-    currentTime: 0,  // hoặc cập nhật theo thời gian nếu cần
-    duration: 100000, // Ví dụ, có thể là một giá trị cố định cho hình ảnh liên tục
-    isPaused: false,
-    playbackRate: 1.0,
+  playerManager.load({
     media: {
-      contentType: 'image/jpeg',  // Hoặc type phù hợp nếu là ảnh động
-      contentUrl: '',        // Cập nhật URL ảnh mới
-    }
+      contentType: 'image/jpeg',
+      contentUrl: 'your_new_image_url', // Cập nhật URL ảnh mới
+    },
+    autoplay: true
   });
-
-  // Cập nhật trạng thái Play
-  playerManager.onPlay();
   function updateImage() {
     if (!liveStreamActive) return; // Nếu bị dừng, không cập nhật nữa
 
