@@ -246,14 +246,7 @@ function isImageFormat(url) {
 function startLiveImageStream(baseUrl) {
   liveStreamActive = true;
   if (refreshInterval) clearInterval(refreshInterval); // Dừng cập nhật cũ (nếu có)
-    // Cập nhật trạng thái "Đang phát" cho Chromecast
-  playerManager.load({
-    media: {
-      contentType: 'image/jpeg',
-      contentUrl: 'your_new_image_url', // Cập nhật URL ảnh mới
-    },
-    autoplay: true
-  });
+
   function updateImage() {
     if (!liveStreamActive) return; // Nếu bị dừng, không cập nhật nữa
 
