@@ -305,7 +305,7 @@ function startLiveImageStream(baseUrl) {
       playbackRate: 1.0,
       media: {
         contentType: 'image/jpeg',  // Hoặc type phù hợp nếu là ảnh động
-        contentUrl: newSrc,        // Cập nhật URL ảnh mới
+        contentUrl: '',        // Cập nhật URL ảnh mới
       }
     });
 
