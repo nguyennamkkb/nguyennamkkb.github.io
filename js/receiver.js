@@ -252,13 +252,22 @@ function startLiveImageStream(baseUrl) {
 
     const timestamp = new Date().getTime();
     const newSrc = baseUrl.split("?")[0] + "?t=" + timestamp; // Tránh cache
-    mirrorImage.src = newSrc;
-    console.log("🔄 Cập nhật ảnh:", newSrc);
+
+    playerManager.load({
+      media: {
+        contentType: 'image/jpeg',
+        contentUrl: newSrc,
+      },
+      autoplay: true,
+      startTime: 0, // Thời gian bắt đầu phát
+    });
+    // mirrorImage.src = newSrc;
+    // console.log("🔄 Cập nhật ảnh:", newSrc);
   }
 
   mirrorImage.onload = function () {
-    mirrorImage.style.visibility = 'visible';
-    videoPlayer.style.visibility = 'hidden';
+    mirrorImage.style.visibility = 'hidden'; //visible
+    videoPlayer.style.visibility = 'visible'; // hidden
     setTimeout(updateImage, 120); // Tải ảnh tiếp theo sau khi ảnh cũ đã tải xong
   };
 
@@ -275,7 +284,9 @@ function startLiveImageStream(baseUrl) {
       videoPlayer.style.visibility = 'visible';
       liveStreamActive = false;
       clearInterval(refreshInterval)
-      playerManager.stop();
+      // playerManager.stop();
+      context.stop()
+
     }
     
   };
