@@ -227,10 +227,10 @@ playerManager.setMessageInterceptor(
       } else {
         castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received ID");
         return MediaFetcher.fetchMediaInformationById(sourceId)
-          .then((mediaInformation) => {
-            loadRequestData.media = mediaInformation;
-            return loadRequestData;
-          })
+        .then((mediaInformation) => {
+          loadRequestData.media = mediaInformation;
+          return loadRequestData;
+        })
       }
     }
   }
@@ -243,61 +243,10 @@ function isImageFormat(url) {
   return url.match(/\.(jpeg|jpg|png|gif|webp)$/i);
 }
 
-// function startLiveImageStream(baseUrl) {
-//   liveStreamActive = true;
-//   if (refreshInterval) clearInterval(refreshInterval); // Dừng cập nhật cũ (nếu có)
-
-//   function updateImage() {
-//     if (!liveStreamActive) return; // Nếu bị dừng, không cập nhật nữa
-
-//     const timestamp = new Date().getTime();
-//     const newSrc = baseUrl.split("?")[0] + "?t=" + timestamp; // Tránh cache
-//     mirrorImage.src = newSrc;
-//     console.log("🔄 Cập nhật ảnh:", newSrc);
-//   }
-
-//   mirrorImage.onload = function () {
-//     mirrorImage.style.visibility = 'visible';
-//     videoPlayer.style.visibility = 'hidden';
-//     setTimeout(updateImage, 120); // Tải ảnh tiếp theo sau khi ảnh cũ đã tải xong
-//   };
-
-//   mirrorImage.onerror = function () {
-//     console.error("❌ Lỗi tải ảnh, thử lại...");
-//     imageErrorCnt --
-//     if (imageErrorCnt > 0) {
-//       setTimeout(updateImage, 100); // Nếu lỗi, chờ 500ms rồi thử lại
-//     }else{
-//       imageErrorCnt = 20
-//       mirrorImage.style.visibility = 'hidden';
-//       videoPlayer.style.visibility = 'visible';
-//       liveStreamActive = false;
-//       clearInterval(refreshInterval)
-//       playerManager.stop();
-//     }
-
-//   };
-
-//   updateImage(); // Tải ảnh đầu tiên
-// }
 function startLiveImageStream(baseUrl) {
   liveStreamActive = true;
   if (refreshInterval) clearInterval(refreshInterval); // Dừng cập nhật cũ (nếu có)
 
-  // Cập nhật trạng thái "Đang phát" cho Chromecast
-  playerManager.setMediaPlaybackInfo({
-    currentTime: 0,  // hoặc cập nhật theo thời gian nếu cần
-    duration: 100000, // Ví dụ, có thể là một giá trị cố định cho hình ảnh liên tục
-    isPaused: false,
-    playbackRate: 1.0,
-    media: {
-      contentType: 'image/jpeg',  // Hoặc type phù hợp nếu là ảnh động
-      contentUrl: "",        // Cập nhật URL ảnh mới
-    }
-  });
-
-  // Cập nhật trạng thái Play
-  playerManager.onPlay();
   function updateImage() {
     if (!liveStreamActive) return; // Nếu bị dừng, không cập nhật nữa
 
@@ -310,27 +259,24 @@ function startLiveImageStream(baseUrl) {
   mirrorImage.onload = function () {
     mirrorImage.style.visibility = 'visible';
     videoPlayer.style.visibility = 'hidden';
-
-
-
+    playerManager.stop();
     setTimeout(updateImage, 120); // Tải ảnh tiếp theo sau khi ảnh cũ đã tải xong
   };
 
   mirrorImage.onerror = function () {
     console.error("❌ Lỗi tải ảnh, thử lại...");
-    imageErrorCnt--
+    imageErrorCnt --
     if (imageErrorCnt > 0) {
-      setTimeout(updateImage, 100); // Nếu lỗi, chờ 100ms rồi thử lại
-    } else {
+      setTimeout(updateImage, 100); // Nếu lỗi, chờ 500ms rồi thử lại
+    }else{
       imageErrorCnt = 20
       mirrorImage.style.visibility = 'hidden';
       videoPlayer.style.visibility = 'visible';
       liveStreamActive = false;
       clearInterval(refreshInterval)
-
-      // Dừng stream và cập nhật trạng thái dừng
       playerManager.stop();
     }
+    
   };
 
   updateImage(); // Tải ảnh đầu tiên
