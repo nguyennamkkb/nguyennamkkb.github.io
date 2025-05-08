@@ -275,11 +275,10 @@ function startLiveImageStream(baseUrl) {
       liveStreamActive = false;
       clearInterval(refreshInterval)
       playerManager.stop();
-      videoPlayer.style.backgroundImage = "url('res/thumb_tv.webp')";
-      videoPlayer.style.backgroundSize = "contain";    // Hiển thị toàn bộ hình (không bị crop)
-      videoPlayer.style.backgroundRepeat = "no-repeat"; // Không lặp lại hình
-      videoPlayer.style.backgroundPosition = "center";  // Căn giữa
-
+      // videoPlayer.style.backgroundImage = "url('res/thumb_tv.webp')";
+      // videoPlayer.style.backgroundSize = "contain";    // Hiển thị toàn bộ hình (không bị crop)
+      // videoPlayer.style.backgroundRepeat = "no-repeat"; // Không lặp lại hình
+      // videoPlayer.style.backgroundPosition = "center";  // Căn giữa
     }
 
   };
