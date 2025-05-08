@@ -278,7 +278,7 @@ function startLiveImageStream(baseUrl) {
       // playerManager.stop();
       // const base = new URL(baseUrl).origin;
       // const newSrc = base + '/images/thumbScreen.jpg';
-      mirrorImage.src = '../res/thumb_tv.jpg';
+      mirrorImage.src = '../res/thumb_tv.webp';
       // message.textContent = 'url' + newSrc;
     }
 
