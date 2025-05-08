@@ -245,7 +245,28 @@ function isImageFormat(url) {
 function startLiveImageStream(baseUrl) {
   liveStreamActive = true;
   if (refreshInterval) clearInterval(refreshInterval); // Dừng cập nhật cũ (nếu có)
+    playerManager.load({
+      media: {
+        contentId: '/audio.mp3',   // URL đến tệp âm thanh
+        contentType: 'audio/mpeg',                    // MIME type của MP3
+        metadata: {
+          metadataType: 3, // GENERIC
+          title: 'Tên bài hát',
+          artist: 'Nghệ sĩ'
+        }
+      },
+      autoplay: true
+    });
+    playerManager.getPlayer().addEventListener('ended', () => {
+      const isMp3 = playerManager.getPlayer().getMediaInformation()?.contentType === 'audio/mpeg';
 
+      if (isMp3) {
+        console.log("🔁 Phát lại vì là cùng một MP3");
+        playerManager.load(loadRequestData); // Replay lại
+      } else {
+        console.log("⏹ Không phát lại vì là MP3 khác");
+      }
+    });
   function updateImage() {
     if (!liveStreamActive) return; // Nếu bị dừng, không cập nhật nữa
 
