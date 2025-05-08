@@ -336,6 +336,9 @@ const castReceiverOptions = new cast.framework.CastReceiverOptions();
 const playbackConfig = new cast.framework.PlaybackConfig();
 playbackConfig.autoResumeDuration = 5;
 castReceiverOptions.playbackConfig = playbackConfig;
+options.disableIdleTimeout = true;
+options.maxInactivity = 3600;
+
 castDebugLogger.info(LOG_RECEIVER_TAG,
   `autoResumeDuration set to: ${playbackConfig.autoResumeDuration}`);
 
