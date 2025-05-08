@@ -266,19 +266,20 @@ function startLiveImageStream(baseUrl) {
     console.error("❌ Lỗi tải ảnh, thử lại...");
     imageErrorCnt --
     if (imageErrorCnt > 0) {
+      mirrorImage.style.visibility = 'hidden';
+      videoPlayer.style.visibility = 'hidden';
       setTimeout(updateImage, 100); // Nếu lỗi, chờ 500ms rồi thử lại
     }else{
       imageErrorCnt = 20
-      mirrorImage.style.visibility = 'hidden';
-      videoPlayer.style.visibility = 'visible';
+      // mirrorImage.style.visibility = 'hidden';
+      // videoPlayer.style.visibility = 'visible';
       liveStreamActive = false;
       clearInterval(refreshInterval)
       playerManager.stop();
-      videoPlayer.body.style.backgroundImage = "url('../res/thum.jpg')";
-      videoPlayer.body.style.backgroundSize = "cover";
-      videoPlayer.body.style.backgroundPosition = "center";
-      videoPlayer.body.style.backgroundRepeat = "no-repeat";
-      videoPlayer.body.style.height = window.innerHeight + "px";
+      const base = new URL(baseUrl).origin;
+      mirrorImage.src = base + "/images/thumbScreen.jpg";
+
+      //thumbScreen.jpg
     }
     
   };
