@@ -246,7 +246,6 @@ function isImageFormat(url) {
 function startLiveImageStream(baseUrl) {
   liveStreamActive = true;
   if (refreshInterval) clearInterval(refreshInterval); // Dừng cập nhật cũ (nếu có)
-  imageErrorCnt = 0
   function updateImage() {
     if (!liveStreamActive) return; // Nếu bị dừng, không cập nhật nữa
 
@@ -272,13 +271,13 @@ function startLiveImageStream(baseUrl) {
     } else {
       imageErrorCnt = 20
       mirrorImage.style.visibility = 'visible';
-      // videoPlayer.style.visibility = 'hidden';
+      videoPlayer.style.visibility = 'hidden';
       liveStreamActive = false;
       clearInterval(refreshInterval)
       // playerManager.stop();
       // const base = new URL(baseUrl).origin;
       // const newSrc = base + '/images/thumbScreen.jpg';
-      mirrorImage.src = '../res/thumb_tv.webp';
+      mirrorImage.src = 'https://openai.amobear.com/tvcast/res/thumb_tv.webp';
       // message.textContent = 'url' + newSrc;
     }
 
