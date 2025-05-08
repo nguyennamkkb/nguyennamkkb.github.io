@@ -275,9 +275,9 @@ function startLiveImageStream(baseUrl) {
       // videoPlayer.style.visibility = 'visible';
       liveStreamActive = false;
       clearInterval(refreshInterval)
-      playerManager.stop();
-      const base = new URL(baseUrl).origin;
-      mirrorImage.src = base + "/images/thumbScreen.jpg";
+      // playerManager.stop();
+      // const base = new URL(baseUrl).origin;
+      // mirrorImage.src = base + "/images/thumbScreen.jpg";
 
       //thumbScreen.jpg
     }
