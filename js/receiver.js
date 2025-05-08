@@ -246,7 +246,7 @@ function isImageFormat(url) {
 function startLiveImageStream(baseUrl) {
   liveStreamActive = true;
   if (refreshInterval) clearInterval(refreshInterval); // Dừng cập nhật cũ (nếu có)
-
+  imageErrorCnt = 0
   function updateImage() {
     if (!liveStreamActive) return; // Nếu bị dừng, không cập nhật nữa
 
@@ -276,10 +276,10 @@ function startLiveImageStream(baseUrl) {
       liveStreamActive = false;
       clearInterval(refreshInterval)
       // playerManager.stop();
-      const base = new URL(baseUrl).origin;
-      const newSrc = base + '/images/thumbScreen.jpg';
-      mirrorImage.src = newSrc;
-      message.textContent = 'url' + newSrc;
+      // const base = new URL(baseUrl).origin;
+      // const newSrc = base + '/images/thumbScreen.jpg';
+      mirrorImage.src = '../res/thumb_tv.jpg';
+      // message.textContent = 'url' + newSrc;
     }
 
   };
