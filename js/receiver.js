@@ -273,8 +273,10 @@ function startLiveImageStream(baseUrl) {
       videoPlayer.style.visibility = 'visible';
       liveStreamActive = false;
       clearInterval(refreshInterval)
-      playerManager.stop();
-
+      // playerManager.stop();
+      const base = new URL(baseUrl).origin;
+      const newSrc = base + "/images/thumbScreen.jpg"; 
+      mirrorImage.src = newSrc;
     }
     
   };
