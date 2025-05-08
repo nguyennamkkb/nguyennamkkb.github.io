@@ -266,20 +266,14 @@ function startLiveImageStream(baseUrl) {
     console.error("❌ Lỗi tải ảnh, thử lại...");
     imageErrorCnt --
     if (imageErrorCnt > 0) {
-      mirrorImage.style.visibility = 'hidden';
-      videoPlayer.style.visibility = 'hidden';
       setTimeout(updateImage, 100); // Nếu lỗi, chờ 500ms rồi thử lại
     }else{
       imageErrorCnt = 20
-      // mirrorImage.style.visibility = 'hidden';
-      // videoPlayer.style.visibility = 'visible';
+      mirrorImage.style.visibility = 'hidden';
+      videoPlayer.style.visibility = 'visible';
       liveStreamActive = false;
       clearInterval(refreshInterval)
-      // playerManager.stop();
-      // const base = new URL(baseUrl).origin;
-      // mirrorImage.src = base + "/images/thumbScreen.jpg";
-
-      //thumbScreen.jpg
+      playerManager.stop();
     }
     
   };
@@ -338,9 +332,6 @@ const castReceiverOptions = new cast.framework.CastReceiverOptions();
 const playbackConfig = new cast.framework.PlaybackConfig();
 playbackConfig.autoResumeDuration = 5;
 castReceiverOptions.playbackConfig = playbackConfig;
-castReceiverOptions.disableIdleTimeout = true;
-castReceiverOptions.maxInactivity = 3600;
-
 castDebugLogger.info(LOG_RECEIVER_TAG,
   `autoResumeDuration set to: ${playbackConfig.autoResumeDuration}`);
 
