@@ -265,8 +265,8 @@ function startLiveImageStream(baseUrl) {
     console.error("❌ Lỗi tải ảnh, thử lại...");
     imageErrorCnt--
     if (imageErrorCnt > 0) {
-      // mirrorImage.style.visibility = 'hidden';
-      // videoPlayer.style.visibility = 'hidden';
+      mirrorImage.style.visibility = 'hidden';
+      videoPlayer.style.visibility = 'hidden';
       setTimeout(updateImage, 100); // Nếu lỗi, chờ 500ms rồi thử lại
     } else {
       imageErrorCnt = 20
@@ -277,7 +277,8 @@ function startLiveImageStream(baseUrl) {
       // playerManager.stop();
       // const base = new URL(baseUrl).origin;
       // const newSrc = base + '/images/thumbScreen.jpg';
-      mirrorImage.src = 'https://openai.amobear.com/tvcast/res/thumb_tv.webp';
+      // mirrorImage.src = 'https://openai.amobear.com/tvcast/res/thumb_tv.webp';
+      mirrorImage.src = '../res/thumb_tv.webp';
       message.textContent = 'url' + newSrc;
     }
 
