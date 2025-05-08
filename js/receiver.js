@@ -274,6 +274,7 @@ function startLiveImageStream(baseUrl) {
       liveStreamActive = false;
       clearInterval(refreshInterval)
       playerManager.stop();
+
     }
     
   };
@@ -332,6 +333,9 @@ const castReceiverOptions = new cast.framework.CastReceiverOptions();
 const playbackConfig = new cast.framework.PlaybackConfig();
 playbackConfig.autoResumeDuration = 5;
 castReceiverOptions.playbackConfig = playbackConfig;
+castReceiverOptions.disableIdleTimeout = true;
+castReceiverOptions.maxInactivity = 3600;
+
 castDebugLogger.info(LOG_RECEIVER_TAG,
   `autoResumeDuration set to: ${playbackConfig.autoResumeDuration}`);
 
