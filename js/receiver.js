@@ -276,10 +276,8 @@ function startLiveImageStream(baseUrl) {
       liveStreamActive = false;
       clearInterval(refreshInterval)
       // playerManager.stop();
-      const base = new URL(baseUrl);
-      // Lấy IP + protocol (vd: http://192.168.4.113)
-      const ipUrl = `${base.protocol}//${base.hostname}`;
-      const newSrc = ipUrl + ':8888/images/thumbScreen.jpg';
+      const base = new URL(baseUrl).origin;
+      const newSrc = base + '/images/thumbScreen.jpg';
       mirrorImage.src = newSrc;
       message.textContent = 'url' + newSrc;
     }
