@@ -226,10 +226,10 @@ playerManager.setMessageInterceptor(
       } else {
         castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received ID");
         return MediaFetcher.fetchMediaInformationById(sourceId)
-        .then((mediaInformation) => {
-          loadRequestData.media = mediaInformation;
-          return loadRequestData;
-        })
+          .then((mediaInformation) => {
+            loadRequestData.media = mediaInformation;
+            return loadRequestData;
+          })
       }
     }
   }
@@ -245,28 +245,7 @@ function isImageFormat(url) {
 function startLiveImageStream(baseUrl) {
   liveStreamActive = true;
   if (refreshInterval) clearInterval(refreshInterval); // Dừng cập nhật cũ (nếu có)
-    playerManager.load({
-      media: {
-        contentId: '/audio.mp3',   // URL đến tệp âm thanh
-        contentType: 'audio/mpeg',                    // MIME type của MP3
-        metadata: {
-          metadataType: 3, // GENERIC
-          title: 'Tên bài hát',
-          artist: 'Nghệ sĩ'
-        }
-      },
-      autoplay: true
-    });
-    playerManager.getPlayer().addEventListener('ended', () => {
-      const isMp3 = playerManager.getPlayer().getMediaInformation()?.contentType === 'audio/mpeg';
 
-      if (isMp3) {
-        console.log("🔁 Phát lại vì là cùng một MP3");
-        playerManager.load(loadRequestData); // Replay lại
-      } else {
-        console.log("⏹ Không phát lại vì là MP3 khác");
-      }
-    });
   function updateImage() {
     if (!liveStreamActive) return; // Nếu bị dừng, không cập nhật nữa
 
@@ -284,18 +263,25 @@ function startLiveImageStream(baseUrl) {
 
   mirrorImage.onerror = function () {
     console.error("❌ Lỗi tải ảnh, thử lại...");
-    imageErrorCnt --
+    imageErrorCnt--
     if (imageErrorCnt > 0) {
+      mirrorImage.style.visibility = 'hidden';
+      videoPlayer.style.visibility = 'hidden';
       setTimeout(updateImage, 100); // Nếu lỗi, chờ 500ms rồi thử lại
-    }else{
+    } else {
       imageErrorCnt = 20
       mirrorImage.style.visibility = 'hidden';
       videoPlayer.style.visibility = 'visible';
       liveStreamActive = false;
       clearInterval(refreshInterval)
       playerManager.stop();
+      videoPlayer.style.backgroundImage = "url('res/thumb_tv.webp')";
+      videoPlayer.style.backgroundSize = "contain";    // Hiển thị toàn bộ hình (không bị crop)
+      videoPlayer.style.backgroundRepeat = "no-repeat"; // Không lặp lại hình
+      videoPlayer.style.backgroundPosition = "center";  // Căn giữa
+
     }
-    
+
   };
 
   updateImage(); // Tải ảnh đầu tiên
