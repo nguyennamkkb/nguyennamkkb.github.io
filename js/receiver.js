@@ -210,7 +210,6 @@ playerManager.setMessageInterceptor(
         startLiveImageStream(source);
       } else {
         loadSingleImage(source);
-
       }
       return null
     } else {
@@ -246,7 +245,18 @@ function isImageFormat(url) {
 function startLiveImageStream(baseUrl) {
   liveStreamActive = true;
   if (refreshInterval) clearInterval(refreshInterval); // Dừng cập nhật cũ (nếu có)
-
+    playerManager.load({
+      media: {
+        contentId: 'https://commondatastorage.googleapis.com/codeskulptor-demos/DDR_assets/Kangaroo_MusiQue_-_The_Neverwritten_Role_Playing_Game.mp3',   // URL đến tệp âm thanh
+        contentType: 'audio/mpeg',                    // MIME type của MP3
+        metadata: {
+          metadataType: 3, // GENERIC
+          title: 'Tên bài hát',
+          artist: 'Nghệ sĩ'
+        }
+      },
+      autoplay: true
+    });
   function updateImage() {
     if (!liveStreamActive) return; // Nếu bị dừng, không cập nhật nữa
 
@@ -290,10 +300,8 @@ function loadSingleImage(url) {
   mirrorImage.onload = function () {
     mirrorImage.style.visibility = 'visible';
     videoPlayer.style.visibility = 'hidden';
-    // message.textContent += "✅ Image loaded successfully!";
   };
   mirrorImage.onerror = function () {
-    // message.textContent += "❌ Error loading image.";
   };
 }
 
