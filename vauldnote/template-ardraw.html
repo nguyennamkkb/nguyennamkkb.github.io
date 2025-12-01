@@ -1,0 +1,549 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Công cụ sắp xếp thư viện ảnh</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f5f5f5;
+            padding: 20px;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+        .user-info {
+            text-align: right;
+            font-size: 14px;
+            color: #777;
+            margin-bottom: 10px;
+        }
+        .layout-container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+        .json-panel {
+            flex: 1;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            min-height: 300px;
+            display: flex;
+            flex-direction: column;
+        }
+        .json-panel-title {
+            font-size: 18px;
+            margin-bottom: 10px;
+            color: #333;
+        }
+        .json-textarea {
+            width: 100%;
+            flex: 1;
+            min-height: 250px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 14px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            resize: none;
+            margin-bottom: 10px;
+        }
+        .btn {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: background-color 0.3s;
+            margin-right: 10px;
+        }
+        .btn:hover {
+            background-color: #45a049;
+        }
+        .btn-blue {
+            background-color: #2196F3;
+        }
+        .btn-blue:hover {
+            background-color: #0b7dda;
+        }
+        .error-message {
+            color: #d32f2f;
+            padding: 10px;
+            background-color: #ffebee;
+            border-radius: 4px;
+            margin-top: 10px;
+            display: none;
+        }
+        .category {
+            margin-bottom: 30px;
+            background-color: white;
+            border-radius: 8px;
+            padding: 15px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .category-title {
+            font-size: 20px;
+            color: #333;
+            margin-bottom: 15px;
+            padding-bottom: 5px;
+            border-bottom: 2px solid #ddd;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .category-info {
+            font-size: 14px;
+            color: #777;
+        }
+        .gallery {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            min-height: 100px;
+        }
+        .gallery-item {
+            position: relative;
+            width: 150px;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            background-color: white;
+            display: flex;
+            flex-direction: column;
+        }
+        .gallery-item:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+            z-index: 10;
+        }
+        .item-main-content {
+             position: relative;
+             cursor: move;
+        }
+        .gallery-item img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            display: block;
+            pointer-events: none; /* Ngăn ảnh ảnh hưởng đến việc kéo */
+        }
+        .badge {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            padding: 3px 8px;
+            border-radius: 3px;
+            font-size: 12px;
+            font-weight: bold;
+            color: white;
+            z-index: 5;
+            pointer-events: none;
+        }
+        .pro-badge {
+            background-color: #ff7700;
+        }
+        .free-badge {
+            background-color: #4CAF50;
+        }
+        .item-name {
+            padding: 8px;
+            font-size: 13px;
+            background-color: #fff;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            pointer-events: none;
+            flex-grow: 1;
+        }
+        /* CSS MỚI CHO CHECKBOX */
+        .item-pro-toggle {
+            padding: 6px 8px;
+            font-size: 13px;
+            background-color: #f0f0f0;
+            text-align: center;
+            border-top: 1px solid #ddd;
+        }
+        .item-pro-toggle input {
+            margin-right: 5px;
+            vertical-align: middle;
+            cursor: pointer;
+        }
+        .item-pro-toggle label {
+            vertical-align: middle;
+            cursor: pointer;
+        }
+        .drag-instruction {
+            text-align: center;
+            color: #777;
+            margin-bottom: 20px;
+            background-color: #fffde7;
+            padding: 10px;
+            border-radius: 4px;
+            border-left: 4px solid #fbc02d;
+        }
+        .item-order {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            padding: 3px 8px;
+            background-color: rgba(0,0,0,0.6);
+            color: white;
+            border-radius: 3px;
+            font-size: 12px;
+            z-index: 5;
+            pointer-events: none;
+        }
+        .dragging {
+            opacity: 0.6;
+            transform: scale(0.95);
+            z-index: 100;
+        }
+        @media (max-width: 900px) {
+            .layout-container {
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="user-info">
+            <span>User: nguyennamkkb</span> | 
+            <span>Date: 2025-06-19 01:45:01 UTC</span>
+        </div>
+        
+        <h1 style="text-align: center; margin-bottom: 20px;">Công cụ sắp xếp thư viện ảnh</h1>
+        
+        <div class="layout-container">
+            <!-- Input Panel -->
+            <div class="json-panel">
+                <h2 class="json-panel-title">Input JSON Data</h2>
+                <textarea class="json-textarea" id="json-input" placeholder="Dán dữ liệu JSON của bạn vào đây..."></textarea>
+                <div class="error-message" id="error-message"></div>
+                <button class="btn" id="load-btn">Tải Thư viện</button>
+            </div>
+            
+            <!-- Output Panel -->
+            <div class="json-panel">
+                <h2 class="json-panel-title">Output JSON Data</h2>
+                <textarea class="json-textarea" id="json-output" placeholder="JSON đã sắp xếp sẽ xuất hiện ở đây..." readonly></textarea>
+                <button class="btn" id="copy-json-btn">Sao chép vào Clipboard</button>
+            </div>
+        </div>
+        
+        <div class="drag-instruction">
+            <p><strong>💡 Mẹo:</strong> Kéo và thả hình ảnh để sắp xếp lại. Dùng checkbox để thay đổi trạng thái Pro/Free.</p>
+        </div>
+        
+        <div id="gallery-container">
+            <!-- Nội dung thư viện sẽ được tải vào đây -->
+        </div>
+    </div>
+
+    <script>
+        // Lấy các phần tử DOM
+        const jsonInput = document.getElementById('json-input');
+        const jsonOutput = document.getElementById('json-output');
+        const loadBtn = document.getElementById('load-btn');
+        const copyJsonBtn = document.getElementById('copy-json-btn');
+        const galleryContainer = document.getElementById('gallery-container');
+        const errorMessage = document.getElementById('error-message');
+        
+        // Lưu trữ dữ liệu gốc
+        let originalData = null;
+        
+        // Hàm để hiển thị thư viện ảnh
+        function renderGallery(data) {
+            originalData = JSON.parse(JSON.stringify(data));
+            galleryContainer.innerHTML = '';
+            const urlRoot = data.urlRoot;
+            
+            if (!data.data || data.data.length === 0) {
+                galleryContainer.innerHTML = '<p>Không tìm thấy dữ liệu thư viện.</p>';
+                return;
+            }
+            
+            data.data.forEach((category, categoryIndex) => {
+                const categorySection = document.createElement('div');
+                categorySection.className = 'category';
+                categorySection.dataset.categoryId = category.categoryID;
+                categorySection.dataset.categoryIndex = categoryIndex;
+                
+                const categoryTitle = document.createElement('div');
+                categoryTitle.className = 'category-title';
+                const titleText = document.createElement('h2');
+                titleText.textContent = category.categoryName;
+                categoryTitle.appendChild(titleText);
+                const categoryInfo = document.createElement('span');
+                categoryInfo.className = 'category-info';
+                categoryInfo.textContent = `${category.content ? category.content.length : 0} ảnh`;
+                categoryTitle.appendChild(categoryInfo);
+                categorySection.appendChild(categoryTitle);
+                
+                const galleryGrid = document.createElement('div');
+                galleryGrid.className = 'gallery';
+                galleryGrid.dataset.categoryId = category.categoryID;
+                
+                if (category.content && category.content.length > 0) {
+                    category.content.forEach((item, itemIndex) => {
+                        const galleryItem = document.createElement('div');
+                        galleryItem.className = 'gallery-item';
+                        galleryItem.dataset.itemId = item.arID;
+                        galleryItem.dataset.itemIndex = itemIndex;
+                        galleryItem.dataset.categoryId = category.categoryID;
+                        
+                        // Phần nội dung chính (ảnh) để kéo thả
+                        const mainContent = document.createElement('div');
+                        mainContent.className = 'item-main-content';
+                        mainContent.draggable = true;
+                        
+                        const itemOrder = document.createElement('span');
+                        itemOrder.className = 'item-order';
+                        itemOrder.textContent = itemIndex + 1;
+                        mainContent.appendChild(itemOrder);
+                        
+                        const img = document.createElement('img');
+                        img.src = urlRoot + item.thumb;
+                        img.alt = item.arName;
+                        img.loading = 'lazy';
+                        img.onerror = function() {
+                            this.onerror = null;
+                            this.src = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIxNTAiIGhlaWdodD0iMTUwIiB2aWV3Qm94PSIwIDAgMTUwIDE1MCI+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0iI2VjZWNlYyIvPjx0ZXh0IHg9IjUwJSIgeT0iNTAlIiBkb21pbmFudC1iYXNlbGluZT0ibWlkZGxlIiB0ZXh0LWFuY2hvcj0ibWlkZGxlIiBmb250LWZhbWlseT0iQXJpYWwiIGZvbnQtc2l6ZT0iMTYiIGZpbGw9IiNiZGJkYmQiPkxỗi ảnh</textPjwvc3ZnPg==';
+                        };
+                        mainContent.appendChild(img);
+                        
+                        updateItemBadges(mainContent, item);
+                        
+                        const itemName = document.createElement('div');
+                        itemName.className = 'item-name';
+                        itemName.textContent = item.arName;
+
+                        // *** PHẦN MỚI: CHECKBOX CHỈNH SỬA PRO ***
+                        const proToggleContainer = document.createElement('div');
+                        proToggleContainer.className = 'item-pro-toggle';
+                        const proCheckboxId = `pro-check-${item.arID}`;
+                        
+                        const proCheckbox = document.createElement('input');
+                        proCheckbox.type = 'checkbox';
+                        proCheckbox.id = proCheckboxId;
+                        proCheckbox.checked = item.pro;
+                        proCheckbox.dataset.itemId = item.arID;
+                        proCheckbox.dataset.categoryIndex = categoryIndex;
+                        
+                        const proLabel = document.createElement('label');
+                        proLabel.htmlFor = proCheckboxId;
+                        proLabel.textContent = ' Pro';
+                        
+                        proToggleContainer.appendChild(proCheckbox);
+                        proToggleContainer.appendChild(proLabel);
+                        
+                        // Gắn các phần tử vào item
+                        galleryItem.appendChild(mainContent);
+                        galleryItem.appendChild(itemName);
+                        galleryItem.appendChild(proToggleContainer);
+                        galleryGrid.appendChild(galleryItem);
+                        
+                        // Thêm sự kiện
+                        mainContent.addEventListener('dragstart', handleDragStart);
+                        mainContent.addEventListener('dragend', handleDragEnd);
+                        mainContent.addEventListener('dragover', handleDragOver);
+                        mainContent.addEventListener('drop', handleDrop);
+                        proCheckbox.addEventListener('change', handleProToggle);
+                    });
+                } else {
+                    galleryGrid.innerHTML = '<p>Không có ảnh trong danh mục này.</p>';
+                }
+                
+                categorySection.appendChild(galleryGrid);
+                galleryContainer.appendChild(categorySection);
+            });
+            
+            updateJsonOutput();
+        }
+
+        // *** HÀM MỚI: XỬ LÝ KHI CHECKBOX THAY ĐỔI ***
+        function handleProToggle(e) {
+            const checkbox = e.target;
+            const itemId = parseInt(checkbox.dataset.itemId);
+            const categoryIndex = parseInt(checkbox.dataset.categoryIndex);
+            const isPro = checkbox.checked;
+
+            // 1. Cập nhật dữ liệu trong 'originalData'
+            const itemToUpdate = originalData.data[categoryIndex]?.content.find(
+                item => item.arID === itemId
+            );
+
+            if (itemToUpdate) {
+                itemToUpdate.pro = isPro;
+                itemToUpdate.free = !isPro; // Giả sử free luôn ngược lại với pro
+            }
+
+            // 2. Cập nhật huy hiệu (badge) trên giao diện
+            const galleryItem = checkbox.closest('.gallery-item');
+            const mainContent = galleryItem.querySelector('.item-main-content');
+            if(mainContent && itemToUpdate) {
+                updateItemBadges(mainContent, itemToUpdate);
+            }
+
+            // 3. Cập nhật lại JSON output
+            updateJsonOutput();
+        }
+
+        // *** HÀM MỚI: TÁI SỬ DỤNG LOGIC CẬP NHẬT BADGE ***
+        function updateItemBadges(element, itemData) {
+            // Xóa badge cũ
+            element.querySelectorAll('.badge').forEach(badge => badge.remove());
+            // Thêm badge mới dựa trên dữ liệu
+            if (itemData.pro) {
+                const proBadge = document.createElement('span');
+                proBadge.className = 'badge pro-badge';
+                proBadge.textContent = 'PRO';
+                element.appendChild(proBadge);
+            } else if (itemData.free) {
+                const freeBadge = document.createElement('span');
+                freeBadge.className = 'badge free-badge';
+                freeBadge.textContent = 'FREE';
+                element.appendChild(freeBadge);
+            }
+        }
+        
+        let draggedItem = null;
+        
+        function handleDragStart(e) {
+            draggedItem = this.closest('.gallery-item'); // Kéo cả gallery-item
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', draggedItem.dataset.itemIndex);
+            setTimeout(() => { draggedItem.classList.add('dragging'); }, 0);
+        }
+        
+        function handleDragEnd() {
+            if(draggedItem) {
+                draggedItem.classList.remove('dragging');
+            }
+            updateItemOrderNumbers();
+            updateJsonOutput();
+        }
+        
+        function handleDragOver(e) {
+            e.preventDefault();
+        }
+        
+        function handleDrop(e) {
+            e.stopPropagation();
+            const dropTarget = this.closest('.gallery-item');
+            if (draggedItem === dropTarget) return false;
+
+            if (draggedItem.dataset.categoryId === dropTarget.dataset.categoryId) {
+                const parent = dropTarget.parentNode;
+                const children = Array.from(parent.children);
+                const draggedIndex = children.indexOf(draggedItem);
+                const dropIndex = children.indexOf(dropTarget);
+                
+                if (draggedIndex < dropIndex) {
+                    parent.insertBefore(draggedItem, dropTarget.nextSibling);
+                } else {
+                    parent.insertBefore(draggedItem, dropTarget);
+                }
+            } else {
+                console.log("Không thể di chuyển ảnh giữa các danh mục khác nhau.");
+            }
+            return false;
+        }
+        
+        function updateItemOrderNumbers() {
+            document.querySelectorAll('.gallery').forEach(galleryGrid => {
+                const items = galleryGrid.querySelectorAll('.gallery-item');
+                items.forEach((item, index) => {
+                    item.dataset.itemIndex = index;
+                    const orderElem = item.querySelector('.item-order');
+                    if (orderElem) orderElem.textContent = index + 1;
+                });
+            });
+        }
+        
+        function updateJsonOutput() {
+            if (!originalData) return;
+            const updatedData = JSON.parse(JSON.stringify(originalData));
+            
+            document.querySelectorAll('.category').forEach(categorySection => {
+                const categoryIndex = parseInt(categorySection.dataset.categoryIndex);
+                const items = categorySection.querySelectorAll('.gallery-item');
+                const newContentArray = [];
+                items.forEach(item => {
+                    const itemId = parseInt(item.dataset.itemId);
+                    const originalItem = originalData.data[categoryIndex]?.content.find(
+                        contentItem => contentItem.arID === itemId
+                    );
+                    if (originalItem) {
+                        newContentArray.push(originalItem);
+                    }
+                });
+                
+                if (updatedData.data[categoryIndex]) {
+                    updatedData.data[categoryIndex].content = newContentArray;
+                }
+            });
+            
+            jsonOutput.value = JSON.stringify(updatedData, null, 2);
+        }
+        
+        function parseAndValidateJSON(jsonString) {
+            try {
+                const data = JSON.parse(jsonString);
+                if (!data.urlRoot || !Array.isArray(data.data)) {
+                     throw new Error('Cấu trúc JSON không hợp lệ.');
+                }
+                return data;
+            } catch (error) {
+                throw new Error(`JSON không hợp lệ: ${error.message}`);
+            }
+        }
+        
+        function loadGallery() {
+            errorMessage.style.display = 'none';
+            const jsonString = jsonInput.value.trim();
+            if (!jsonString) {
+                errorMessage.textContent = 'Vui lòng nhập dữ liệu JSON.';
+                errorMessage.style.display = 'block';
+                return;
+            }
+            try {
+                const data = parseAndValidateJSON(jsonString);
+                renderGallery(data);
+            } catch (error) {
+                errorMessage.textContent = error.message;
+                errorMessage.style.display = 'block';
+            }
+        }
+        
+        function copyJSONToClipboard() {
+            jsonOutput.select();
+            try {
+                document.execCommand('copy');
+                const originalText = copyJsonBtn.textContent;
+                copyJsonBtn.textContent = 'Đã sao chép!';
+                setTimeout(() => { copyJsonBtn.textContent = originalText; }, 2000);
+            } catch (err) {
+                alert('Không thể sao chép.');
+            }
+        }
+        
+        loadBtn.addEventListener('click', loadGallery);
+        copyJsonBtn.addEventListener('click', copyJSONToClipboard);
+        
+    </script>
+</body>
+</html>
