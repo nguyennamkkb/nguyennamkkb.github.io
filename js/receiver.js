@@ -61,7 +61,8 @@ function rlog(s) {
 }
 
 const PC = window.RTCPeerConnection || window.webkitRTCPeerConnection;
-const RTC_LAT = 0.4, RTC_RATE = 44100;
+// Match the browser receiver: small audio buffer, video held back to align with it.
+const RTC_AUDIO_LAT = 0.1, RTC_VIDEO_DELAY = 0.4, RTC_RATE = 44100;
 let rtcPC = null, rtcWS = null, rtcPend = [], rtcHasRemote = false;
 let rtcAc = null, rtcGain = null, rtcFirstPts = null, rtcEpoch = null, rtcUpto = 0;
 
@@ -80,9 +81,9 @@ function rtcSchedule(i16, pts) {
   const n = i16.length; if (!n) return;
   const now = ctx.currentTime;
   if (rtcUpto < now) { rtcFirstPts = null; rtcEpoch = null; }
-  if (rtcFirstPts === null) { rtcFirstPts = pts; rtcEpoch = now + RTC_LAT; }
+  if (rtcFirstPts === null) { rtcFirstPts = pts; rtcEpoch = now + RTC_AUDIO_LAT; }
   let at = rtcEpoch + (pts - rtcFirstPts);
-  if (at < now + 0.01) { const s = Math.min((now + RTC_LAT) - at, Math.max(0, 0.6 - (rtcEpoch - now))); if (s > 0) { rtcEpoch += s; at = rtcEpoch + (pts - rtcFirstPts); } }
+  if (at < now + 0.01) { const s = Math.min((now + RTC_AUDIO_LAT) - at, Math.max(0, 0.6 - (rtcEpoch - now))); if (s > 0) { rtcEpoch += s; at = rtcEpoch + (pts - rtcFirstPts); } }
   const f = new Float32Array(n); for (let i = 0; i < n; i++) f[i] = i16[i] / 32768;
   const buf = ctx.createBuffer(1, n, RTC_RATE); buf.copyToChannel(f, 0);
   const src = ctx.createBufferSource(); src.buffer = buf; src.connect(rtcGain);
@@ -95,7 +96,9 @@ function rtcMakePC() {
     rlog('ontrack ' + ev.track.kind);
     if (ev.track.kind !== 'video') return;
     rtcVideo.srcObject = ev.streams[0];
-    try { ev.receiver.playoutDelayHint = RTC_LAT; } catch (e) {}
+    // Delay video to line up with the (slightly buffered) data-channel audio.
+    try { ev.receiver.jitterBufferTarget = RTC_VIDEO_DELAY * 1000; } catch (e) {}
+    try { ev.receiver.playoutDelayHint = RTC_VIDEO_DELAY; } catch (e) {}
     rtcVideo.play().then(() => rlog('video.play ok')).catch(e => rlog('play fail: ' + e.message));
   };
   rtcPC.ondatachannel = (ev) => {
