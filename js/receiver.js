@@ -64,7 +64,7 @@ const PC = window.RTCPeerConnection || window.webkitRTCPeerConnection;
 // A/V sync tuning. RTC_AUDIO_LAT = target audio buffer; RTC_AUDIO_MAX = cap before
 // the audio re-anchors (prevents audio drifting permanently behind the video);
 // RTC_VIDEO_DELAY = how much to hold the video back (if the device honors it).
-const RTC_AUDIO_LAT = 0.1, RTC_AUDIO_MAX = 0.25, RTC_VIDEO_DELAY = 0.4, RTC_RATE = 44100;
+const RTC_AUDIO_LAT = 0.2, RTC_AUDIO_MAX = 0.5, RTC_VIDEO_DELAY = 0.2, RTC_RATE = 44100;
 let rtcPC = null, rtcWS = null, rtcPend = [], rtcHasRemote = false;
 let rtcAc = null, rtcGain = null, rtcFirstPts = null, rtcEpoch = null, rtcUpto = 0;
 
