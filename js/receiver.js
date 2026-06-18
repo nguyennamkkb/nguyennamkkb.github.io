@@ -82,17 +82,15 @@ function rtcSchedule(i16, pts) {
   const ctx = rtcEnsureAudio(); if (!ctx || ctx.state !== 'running') return;
   const n = i16.length; if (!n) return;
   const now = ctx.currentTime;
-  // Re-anchor when drained OR when buffered audio (latency) grew past the cap.
-  // The backlog cap is the key fix: it stops audio from drifting permanently
-  // behind the video — it snaps latency back to RTC_AUDIO_LAT (tiny audible blip).
-  if (rtcUpto < now || (rtcUpto - now) > RTC_AUDIO_MAX) { rtcFirstPts = null; rtcEpoch = null; rtcUpto = 0; }
-  if (rtcFirstPts === null) { rtcFirstPts = pts; rtcEpoch = now + RTC_AUDIO_LAT; }
-  let at = rtcEpoch + (pts - rtcFirstPts);
-  if (at < now + 0.005) { rtcEpoch += (now + RTC_AUDIO_LAT) - at; at = rtcEpoch + (pts - rtcFirstPts); }
+  // GAPLESS chaining: each frame starts exactly where the previous one ended, so
+  // there are no inter-buffer gaps → no clicks/crackle. (Relies on the ordered
+  // data channel so frames are already in sequence.) Re-anchor to the target
+  // latency only when the stream drained or the backlog grew too large.
+  if (rtcUpto < now + 0.002 || (rtcUpto - now) > RTC_AUDIO_MAX) rtcUpto = now + RTC_AUDIO_LAT;
   const f = new Float32Array(n); for (let i = 0; i < n; i++) f[i] = i16[i] / 32768;
   const buf = ctx.createBuffer(1, n, RTC_RATE); buf.copyToChannel(f, 0);
   const src = ctx.createBufferSource(); src.buffer = buf; src.connect(rtcGain);
-  const safe = Math.max(at, now + 0.005, rtcUpto); src.start(safe); rtcUpto = safe + buf.duration;
+  src.start(rtcUpto); rtcUpto += buf.duration;
 }
 function rtcSend(o) { if (rtcWS && rtcWS.readyState === 1) rtcWS.send(JSON.stringify(o)); }
 function rtcMakePC() {
