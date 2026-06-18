@@ -27,6 +27,133 @@ var liveStreamActive = false;
 var refreshInterval = null;
 var imageErrorCnt = 20
 
+/* =====================================================================
+ * WebRTC live mirror — replaces the MJPEG /stream?live=true polling.
+ * The phone (broadcast extension) is the OFFERER on ws://<ip>:8080/signaling;
+ * this receiver is the ANSWERER. Video → <video>, audio → data channel + Web Audio.
+ * ===================================================================== */
+const rtcVideo = document.getElementById('rtcVideo');
+const dbgEl = document.getElementById('dbg');
+const RTC_DEBUG = true; // set false to hide the on-screen overlay
+const _dbgLines = [];
+function rlog(s) {
+  if (!RTC_DEBUG) return;
+  const t = new Date().toISOString().substr(11, 8);
+  _dbgLines.push(t + '  ' + s);
+  while (_dbgLines.length > 14) _dbgLines.shift();
+  if (dbgEl) { dbgEl.style.display = 'block'; dbgEl.textContent = _dbgLines.join('\n'); }
+  try { console.log('[rtc]', s); } catch (e) {}
+}
+
+const PC = window.RTCPeerConnection || window.webkitRTCPeerConnection;
+const RTC_LAT = 0.4, RTC_RATE = 44100;
+let rtcPC = null, rtcWS = null, rtcPend = [], rtcHasRemote = false;
+let rtcAc = null, rtcGain = null, rtcFirstPts = null, rtcEpoch = null, rtcUpto = 0;
+
+function rtcEnsureAudio() {
+  if (!rtcAc) {
+    const C = window.AudioContext || window.webkitAudioContext;
+    if (!C) return null;
+    rtcAc = new C(); rtcGain = rtcAc.createGain(); rtcGain.connect(rtcAc.destination);
+    rtcAc.onstatechange = () => rlog('AudioContext ' + rtcAc.state);
+  }
+  if (rtcAc.state === 'suspended') rtcAc.resume();
+  return rtcAc;
+}
+function rtcSchedule(i16, pts) {
+  const ctx = rtcEnsureAudio(); if (!ctx || ctx.state !== 'running') return;
+  const n = i16.length; if (!n) return;
+  const now = ctx.currentTime;
+  if (rtcUpto < now) { rtcFirstPts = null; rtcEpoch = null; }
+  if (rtcFirstPts === null) { rtcFirstPts = pts; rtcEpoch = now + RTC_LAT; }
+  let at = rtcEpoch + (pts - rtcFirstPts);
+  if (at < now + 0.01) { const s = Math.min((now + RTC_LAT) - at, Math.max(0, 0.6 - (rtcEpoch - now))); if (s > 0) { rtcEpoch += s; at = rtcEpoch + (pts - rtcFirstPts); } }
+  const f = new Float32Array(n); for (let i = 0; i < n; i++) f[i] = i16[i] / 32768;
+  const buf = ctx.createBuffer(1, n, RTC_RATE); buf.copyToChannel(f, 0);
+  const src = ctx.createBufferSource(); src.buffer = buf; src.connect(rtcGain);
+  const safe = Math.max(at, now + 0.005, rtcUpto); src.start(safe); rtcUpto = safe + buf.duration;
+}
+function rtcSend(o) { if (rtcWS && rtcWS.readyState === 1) rtcWS.send(JSON.stringify(o)); }
+function rtcMakePC() {
+  rtcPC = new PC({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+  rtcPC.ontrack = (ev) => {
+    rlog('ontrack ' + ev.track.kind);
+    if (ev.track.kind !== 'video') return;
+    rtcVideo.srcObject = ev.streams[0];
+    try { ev.receiver.playoutDelayHint = RTC_LAT; } catch (e) {}
+    rtcVideo.play().then(() => rlog('video.play ok')).catch(e => rlog('play fail: ' + e.message));
+  };
+  rtcPC.ondatachannel = (ev) => {
+    if (ev.channel.label !== 'audio') return;
+    ev.channel.binaryType = 'arraybuffer';
+    ev.channel.onmessage = (msg) => {
+      const b = msg.data; if (!(b instanceof ArrayBuffer) || b.byteLength < 8) return;
+      rtcSchedule(new Int16Array(b, 8), new DataView(b).getFloat64(0, true));
+    };
+  };
+  rtcPC.onicecandidate = (ev) => { if (ev.candidate) rtcSend({ type: 'ice-candidate', candidate: ev.candidate }); };
+  rtcPC.oniceconnectionstatechange = () => rlog('ICE ' + rtcPC.iceConnectionState);
+  rtcPC.onconnectionstatechange = () => rlog('PC ' + rtcPC.connectionState);
+  return rtcPC;
+}
+function rtcHandle(m) {
+  if (m.type === 'offer') {
+    rlog('offer received');
+    const p = rtcMakePC();
+    p.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: m.sdp }))
+      .then(() => { rtcHasRemote = true; rtcPend.forEach(c => p.addIceCandidate(new RTCIceCandidate(c))); rtcPend = []; return p.createAnswer(); })
+      .then(a => p.setLocalDescription(a).then(() => { rtcSend({ type: 'answer', sdp: a.sdp }); rlog('answer sent'); }))
+      .catch(e => rlog('negotiation fail: ' + e.message));
+  } else if (m.type === 'ice-candidate') {
+    if (rtcHasRemote && rtcPC) rtcPC.addIceCandidate(new RTCIceCandidate(m.candidate)).catch(() => {});
+    else rtcPend.push(m.candidate);
+  }
+}
+
+/** Start the WebRTC mirror. `source` is the cast contentUrl carrying the phone IP. */
+function startWebRTCMirror(source) {
+  // Stop any legacy MJPEG polling.
+  liveStreamActive = false;
+  if (refreshInterval) { clearInterval(refreshInterval); refreshInterval = null; }
+
+  if (!PC) { rlog('FATAL: RTCPeerConnection không hỗ trợ trên thiết bị'); return; }
+
+  let host = null;
+  try { host = new URL(source).hostname; } catch (e) {}
+  if (!host) { rlog('FATAL: không lấy được IP từ ' + source); return; }
+  const sig = 'ws://' + host + ':8080/signaling';
+
+  stopWebRTCMirror();           // tear down any previous session
+  mirrorImage.style.visibility = 'hidden';
+  videoPlayer.style.visibility = 'hidden';
+  rtcVideo.style.visibility = 'visible';
+  rtcEnsureAudio();             // Cast devices usually allow autoplay
+  rlog('Connecting ' + sig);
+  try {
+    rtcWS = new WebSocket(sig);
+    rtcWS.onopen = () => rlog('Signaling OPEN');
+    rtcWS.onerror = () => rlog('Signaling ERROR (mixed-content? wss cần thiết?)');
+    rtcWS.onclose = () => rlog('Signaling CLOSED');
+    rtcWS.onmessage = (ev) => { let m; try { m = JSON.parse(ev.data); } catch (e) { return; } rtcHandle(m); };
+  } catch (e) { rlog('WebSocket lỗi: ' + e.message); }
+}
+
+/** Tear down the WebRTC mirror (when switching to a photo / video cast). */
+function stopWebRTCMirror() {
+  if (rtcWS) { try { rtcWS.close(); } catch (e) {} rtcWS = null; }
+  if (rtcPC) { try { rtcPC.close(); } catch (e) {} rtcPC = null; }
+  rtcPend = []; rtcHasRemote = false;
+  rtcFirstPts = null; rtcEpoch = null; rtcUpto = 0;
+  if (rtcVideo) { rtcVideo.srcObject = null; rtcVideo.style.visibility = 'hidden'; }
+}
+
+// Periodic on-screen heartbeat so we can SEE frames arriving on the TV.
+setInterval(() => {
+  if (rtcVideo && rtcVideo.videoWidth) {
+    rlog('video ' + rtcVideo.videoWidth + 'x' + rtcVideo.videoHeight + (rtcVideo.paused ? ' PAUSED' : ' playing'));
+  }
+}, 3000);
+
 /**
  * @fileoverview This sample demonstrates how to build your own Web Receiver for
  * use with Google Cast. The main receiver implementation is provided in this
