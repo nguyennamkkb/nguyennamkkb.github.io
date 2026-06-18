@@ -61,8 +61,10 @@ function rlog(s) {
 }
 
 const PC = window.RTCPeerConnection || window.webkitRTCPeerConnection;
-// Match the browser receiver: small audio buffer, video held back to align with it.
-const RTC_AUDIO_LAT = 0.1, RTC_VIDEO_DELAY = 0.4, RTC_RATE = 44100;
+// A/V sync tuning. RTC_AUDIO_LAT = target audio buffer; RTC_AUDIO_MAX = cap before
+// the audio re-anchors (prevents audio drifting permanently behind the video);
+// RTC_VIDEO_DELAY = how much to hold the video back (if the device honors it).
+const RTC_AUDIO_LAT = 0.1, RTC_AUDIO_MAX = 0.25, RTC_VIDEO_DELAY = 0.4, RTC_RATE = 44100;
 let rtcPC = null, rtcWS = null, rtcPend = [], rtcHasRemote = false;
 let rtcAc = null, rtcGain = null, rtcFirstPts = null, rtcEpoch = null, rtcUpto = 0;
 
@@ -80,10 +82,13 @@ function rtcSchedule(i16, pts) {
   const ctx = rtcEnsureAudio(); if (!ctx || ctx.state !== 'running') return;
   const n = i16.length; if (!n) return;
   const now = ctx.currentTime;
-  if (rtcUpto < now) { rtcFirstPts = null; rtcEpoch = null; }
+  // Re-anchor when drained OR when buffered audio (latency) grew past the cap.
+  // The backlog cap is the key fix: it stops audio from drifting permanently
+  // behind the video — it snaps latency back to RTC_AUDIO_LAT (tiny audible blip).
+  if (rtcUpto < now || (rtcUpto - now) > RTC_AUDIO_MAX) { rtcFirstPts = null; rtcEpoch = null; rtcUpto = 0; }
   if (rtcFirstPts === null) { rtcFirstPts = pts; rtcEpoch = now + RTC_AUDIO_LAT; }
   let at = rtcEpoch + (pts - rtcFirstPts);
-  if (at < now + 0.01) { const s = Math.min((now + RTC_AUDIO_LAT) - at, Math.max(0, 0.6 - (rtcEpoch - now))); if (s > 0) { rtcEpoch += s; at = rtcEpoch + (pts - rtcFirstPts); } }
+  if (at < now + 0.005) { rtcEpoch += (now + RTC_AUDIO_LAT) - at; at = rtcEpoch + (pts - rtcFirstPts); }
   const f = new Float32Array(n); for (let i = 0; i < n; i++) f[i] = i16[i] / 32768;
   const buf = ctx.createBuffer(1, n, RTC_RATE); buf.copyToChannel(f, 0);
   const src = ctx.createBufferSource(); src.buffer = buf; src.connect(rtcGain);
@@ -168,7 +173,8 @@ function stopWebRTCMirror() {
 // Periodic on-screen heartbeat so we can SEE frames arriving on the TV.
 setInterval(() => {
   if (rtcVideo && rtcVideo.videoWidth) {
-    rlog('video ' + rtcVideo.videoWidth + 'x' + rtcVideo.videoHeight + (rtcVideo.paused ? ' PAUSED' : ' playing'));
+    const aLat = (rtcAc && rtcAc.state === 'running') ? (rtcUpto - rtcAc.currentTime) : -1;
+    rlog('video ' + rtcVideo.videoWidth + 'x' + rtcVideo.videoHeight + (rtcVideo.paused ? ' PAUSED' : ' playing') + ' | audioLat=' + aLat.toFixed(2) + 's');
   }
 }, 3000);
 
