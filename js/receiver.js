@@ -61,10 +61,10 @@ function rlog(s) {
 }
 
 const PC = window.RTCPeerConnection || window.webkitRTCPeerConnection;
-// A/V sync tuning. RTC_AUDIO_LAT = target audio buffer; RTC_AUDIO_MAX = cap before
-// the audio re-anchors (prevents audio drifting permanently behind the video);
-// RTC_VIDEO_DELAY = how much to hold the video back (if the device honors it).
-const RTC_AUDIO_LAT = 0.2, RTC_AUDIO_MAX = 0.5, RTC_VIDEO_DELAY = 0.2, RTC_RATE = 44100;
+// A/V sync tuning (same values as the known-good browser receiver):
+// RTC_AUDIO_LAT = target audio buffer; RTC_VIDEO_DELAY = how much to hold the
+// video back (if the device honors playoutDelayHint).
+const RTC_AUDIO_LAT = 0.1, RTC_VIDEO_DELAY = 0.4, RTC_RATE = 44100;
 let rtcPC = null, rtcWS = null, rtcPend = [], rtcHasRemote = false;
 let rtcAc = null, rtcGain = null, rtcFirstPts = null, rtcEpoch = null, rtcUpto = 0;
 
@@ -82,15 +82,28 @@ function rtcSchedule(i16, pts) {
   const ctx = rtcEnsureAudio(); if (!ctx || ctx.state !== 'running') return;
   const n = i16.length; if (!n) return;
   const now = ctx.currentTime;
-  // GAPLESS chaining: each frame starts exactly where the previous one ended, so
-  // there are no inter-buffer gaps → no clicks/crackle. (Relies on the ordered
-  // data channel so frames are already in sequence.) Re-anchor to the target
-  // latency only when the stream drained or the backlog grew too large.
-  if (rtcUpto < now + 0.002 || (rtcUpto - now) > RTC_AUDIO_MAX) rtcUpto = now + RTC_AUDIO_LAT;
+  // Audio scheduling ported verbatim from the (clean) browser receiver:
+  // jitter buffer anchored at RTC_AUDIO_LAT, with underflow recovery (nudge epoch
+  // forward, capped at 300ms) and slow drift recovery (pull epoch back).
+  if (rtcUpto < now) { rtcFirstPts = null; rtcEpoch = null; }
+  let at;
+  if (rtcFirstPts === null) {
+    rtcFirstPts = pts; rtcEpoch = now + RTC_AUDIO_LAT; at = rtcEpoch;
+  } else {
+    at = rtcEpoch + (pts - rtcFirstPts);
+    if (at < now + 0.010) {
+      const shift = (now + RTC_AUDIO_LAT) - at;
+      const allowed = Math.max(0, 0.300 - (rtcEpoch - now));
+      const s = Math.min(shift, allowed);
+      if (s > 0) { rtcEpoch += s; at = rtcEpoch + (pts - rtcFirstPts); }
+    }
+    const head = at - now;
+    if (head > RTC_AUDIO_LAT * 1.5) { rtcEpoch -= (head - RTC_AUDIO_LAT) * 0.02; at = rtcEpoch + (pts - rtcFirstPts); }
+  }
   const f = new Float32Array(n); for (let i = 0; i < n; i++) f[i] = i16[i] / 32768;
   const buf = ctx.createBuffer(1, n, RTC_RATE); buf.copyToChannel(f, 0);
   const src = ctx.createBufferSource(); src.buffer = buf; src.connect(rtcGain);
-  src.start(rtcUpto); rtcUpto += buf.duration;
+  const safe = Math.max(at, now + 0.005, rtcUpto); src.start(safe); rtcUpto = safe + buf.duration;
 }
 function rtcSend(o) { if (rtcWS && rtcWS.readyState === 1) rtcWS.send(JSON.stringify(o)); }
 function rtcMakePC() {
