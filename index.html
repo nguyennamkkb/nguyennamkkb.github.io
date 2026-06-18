@@ -1,65 +1,160 @@
-<!--
-Copyright 2022 Google LLC. All Rights Reserved.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
- -->
-<!--
-This sample demonstrates how to build your own Receiver for use with Google
-Cast.
- -->
 <!DOCTYPE html>
-<html>
-
+<html lang="en">
 <head>
-  <link rel="stylesheet" href="css/receiver.css" media="screen" />
+  <meta charset="utf-8">
+  <title>WebRTC Cast Receiver (TEST)</title>
   <script src="//www.gstatic.com/cast/sdk/libs/caf_receiver/v3/cast_receiver_framework.js"></script>
-  <!-- Cast Debug Logger -->
-  <script src="//www.gstatic.com/cast/sdk/libs/devtools/debug_layer/caf_receiver_logger.js"></script>
   <style>
-    #mirrorImage {
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
-      visibility: hidden;
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-      /* Căn giữa theo cả chiều ngang và chiều dọc */
-    }
-
-    #message {
-      color: red;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; background: #000; overflow: hidden;
+                 font-family: monospace; color: #0f0; }
+    #v { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: contain; background: #000; }
+    /* On-screen debug log — visible on the TV since there is no devtools */
+    #dbg { position: fixed; top: 0; left: 0; right: 0; max-height: 45%;
+           overflow: hidden; z-index: 10; padding: 10px;
+           background: rgba(0,0,0,.55); font-size: 20px; line-height: 1.35;
+           white-space: pre-wrap; word-break: break-all; }
+    #big { position: fixed; inset: 0; display: none; align-items: center; justify-content: center;
+           z-index: 20; background: rgba(0,0,0,.85); color: #f33; font-size: 34px; text-align: center; padding: 24px; }
   </style>
 </head>
-
 <body>
+  <video id="v" autoplay playsinline muted></video>
+  <div id="dbg">WebRTC Cast Receiver (TEST) — waiting for cast…</div>
+  <div id="big"></div>
 
-  <img id="mirrorImage" src="" alt="Received Image">
-  <div id="message"></div>
+  <script>
+  (function () {
+    const dbgEl = document.getElementById('dbg');
+    const bigEl = document.getElementById('big');
+    const video = document.getElementById('v');
+    const lines = [];
+    function log(s) {
+      const t = new Date().toISOString().substr(11, 8);
+      lines.push(t + '  ' + s);
+      while (lines.length > 14) lines.shift();
+      dbgEl.textContent = lines.join('\n');
+      try { console.log('[recv]', s); } catch (e) {}
+    }
+    function fatal(s) { bigEl.style.display = 'flex'; bigEl.textContent = s; log('FATAL: ' + s); }
 
-  <cast-media-player id="videoPlayer"></cast-media-player>
+    // ── Feature check: does this Cast device expose WebRTC at all? ──
+    log('UA: ' + navigator.userAgent);
+    if (typeof RTCPeerConnection === 'undefined' && typeof webkitRTCPeerConnection === 'undefined') {
+      fatal('RTCPeerConnection KHÔNG có trên thiết bị này → WebRTC không hỗ trợ.');
+    } else {
+      log('RTCPeerConnection: AVAILABLE ✔');
+    }
+    const PC = window.RTCPeerConnection || window.webkitRTCPeerConnection;
 
+    // ── Audio scheduler (Web Audio, PCM over data channel) ──
+    const LAT = 0.4, RATE = 44100;
+    let ac = null, gain = null, firstPts = null, epoch = null, upto = 0;
+    function ensureAudio() {
+      if (!ac) {
+        const C = window.AudioContext || window.webkitAudioContext;
+        if (!C) { log('AudioContext: NONE'); return null; }
+        ac = new C(); gain = ac.createGain(); gain.connect(ac.destination);
+        log('AudioContext created, state=' + ac.state);
+        ac.onstatechange = () => log('AudioContext state=' + ac.state);
+      }
+      if (ac.state === 'suspended') ac.resume();
+      return ac;
+    }
+    function schedule(i16, pts) {
+      const ctx = ensureAudio(); if (!ctx || ctx.state !== 'running') return;
+      const n = i16.length; if (!n) return;
+      const now = ctx.currentTime;
+      if (upto < now) { firstPts = null; epoch = null; }
+      if (firstPts === null) { firstPts = pts; epoch = now + LAT; }
+      let at = epoch + (pts - firstPts);
+      if (at < now + 0.01) { const s = Math.min((now + LAT) - at, Math.max(0, 0.6 - (epoch - now))); if (s > 0) { epoch += s; at = epoch + (pts - firstPts); } }
+      const f = new Float32Array(n); for (let i = 0; i < n; i++) f[i] = i16[i] / 32768;
+      const buf = ctx.createBuffer(1, n, RATE); buf.copyToChannel(f, 0);
+      const src = ctx.createBufferSource(); src.buffer = buf; src.connect(gain);
+      const safe = Math.max(at, now + 0.005, upto); src.start(safe); upto = safe + buf.duration;
+    }
 
-  <footer>
-    <script src="js/receiver.js" type="module"></script>
-    <script src="js/testjs.js" type="module"></script>
-    <script>
+    // ── WebRTC answerer ──
+    let pc = null, ws = null, pend = [], hasRemote = false;
+    function send(o) { if (ws && ws.readyState === 1) ws.send(JSON.stringify(o)); }
+    function startWebRTC(sigUrl) {
+      log('Connecting signaling: ' + sigUrl);
+      try { ws = new WebSocket(sigUrl); }
+      catch (e) { fatal('WebSocket lỗi: ' + e.message); return; }
+      ws.onopen = () => log('Signaling OPEN ✔');
+      ws.onerror = () => log('Signaling ERROR');
+      ws.onclose = () => log('Signaling CLOSED');
+      ws.onmessage = (ev) => { let m; try { m = JSON.parse(ev.data); } catch (e) { return; } handle(m); };
+    }
+    function makePC() {
+      pc = new PC({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+      pc.ontrack = (ev) => {
+        log('ontrack: ' + ev.track.kind);
+        if (ev.track.kind !== 'video') return;
+        video.srcObject = ev.streams[0];
+        try { ev.receiver.playoutDelayHint = LAT; } catch (e) {}
+        video.play().then(() => log('video.play() ok')).catch(e => log('video.play() fail: ' + e.message));
+      };
+      pc.ondatachannel = (ev) => {
+        log('ondatachannel: ' + ev.channel.label);
+        if (ev.channel.label !== 'audio') return;
+        ev.channel.binaryType = 'arraybuffer';
+        ev.channel.onmessage = (msg) => {
+          const b = msg.data; if (!(b instanceof ArrayBuffer) || b.byteLength < 8) return;
+          const pts = new DataView(b).getFloat64(0, true);
+          schedule(new Int16Array(b, 8), pts);
+        };
+      };
+      pc.onicecandidate = (ev) => { if (ev.candidate) send({ type: 'ice-candidate', candidate: ev.candidate }); };
+      pc.oniceconnectionstatechange = () => log('ICE: ' + pc.iceConnectionState);
+      pc.onconnectionstatechange = () => log('PC: ' + pc.connectionState);
+      return pc;
+    }
+    function handle(m) {
+      if (m.type === 'offer') {
+        log('offer received');
+        const p = makePC();
+        p.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: m.sdp }))
+          .then(() => { hasRemote = true; pend.forEach(c => p.addIceCandidate(new RTCIceCandidate(c))); pend = []; return p.createAnswer(); })
+          .then(a => p.setLocalDescription(a).then(() => { send({ type: 'answer', sdp: a.sdp }); log('answer sent'); }))
+          .catch(e => fatal('negotiation lỗi: ' + e.message));
+      } else if (m.type === 'ice-candidate') {
+        if (hasRemote && pc) pc.addIceCandidate(new RTCIceCandidate(m.candidate)).catch(() => {});
+        else pend.push(m.candidate);
+      }
+    }
 
+    // Poll video size so we can SEE on the TV if frames actually arrive
+    setInterval(() => {
+      if (video.videoWidth) log('video ' + video.videoWidth + 'x' + video.videoHeight + ' ct=' + video.currentTime.toFixed(1) + (video.paused ? ' PAUSED' : ' playing'));
+    }, 3000);
 
-    </script>
-  </footer>
+    // ── Cast plumbing ──
+    function hostFrom(u) { try { return new URL(u).hostname; } catch (e) { return null; } }
+    try {
+      const context = cast.framework.CastReceiverContext.getInstance();
+      const pm = context.getPlayerManager();
+      pm.setMessageInterceptor(cast.framework.messages.MessageType.LOAD, (req) => {
+        const media = req && req.media || {};
+        const url = media.contentUrl || media.contentId || media.entity || '';
+        log('LOAD contentUrl: ' + url);
+        const host = hostFrom(url);
+        if (!host) { fatal('Không lấy được IP từ URL cast: ' + url); return null; }
+        const sig = 'ws://' + host + ':8080/signaling';
+        ensureAudio();           // try to unlock audio early (Cast usually allows autoplay)
+        startWebRTC(sig);
+        return null;             // we render via <video> ourselves, not the CAF player
+      });
+      const opts = new cast.framework.CastReceiverOptions();
+      opts.disableIdleTimeout = true;
+      opts.maxInactivity = 3600;
+      context.start(opts);
+      log('Cast context started, waiting for LOAD…');
+    } catch (e) {
+      fatal('Cast init lỗi: ' + e.message);
+    }
+  })();
+  </script>
 </body>
-
 </html>
