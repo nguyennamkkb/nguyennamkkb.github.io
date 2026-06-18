@@ -32,8 +32,23 @@ var imageErrorCnt = 20
  * The phone (broadcast extension) is the OFFERER on ws://<ip>:8080/signaling;
  * this receiver is the ANSWERER. Video → <video>, audio → data channel + Web Audio.
  * ===================================================================== */
-const rtcVideo = document.getElementById('rtcVideo');
-const dbgEl = document.getElementById('dbg');
+// Create the elements programmatically if index.html wasn't updated — this keeps
+// the receiver from crashing (a thrown error in LOAD unloads the whole app).
+let rtcVideo = document.getElementById('rtcVideo');
+if (!rtcVideo) {
+  rtcVideo = document.createElement('video');
+  rtcVideo.id = 'rtcVideo';
+  rtcVideo.autoplay = true; rtcVideo.muted = true; rtcVideo.setAttribute('playsinline', '');
+  rtcVideo.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;background:#000;visibility:hidden;';
+  document.body.appendChild(rtcVideo);
+}
+let dbgEl = document.getElementById('dbg');
+if (!dbgEl) {
+  dbgEl = document.createElement('div');
+  dbgEl.id = 'dbg';
+  dbgEl.style.cssText = 'position:fixed;top:0;left:0;right:0;max-height:45%;overflow:hidden;z-index:50;padding:8px;background:rgba(0,0,0,.5);color:#0f0;font:16px/1.3 monospace;white-space:pre-wrap;word-break:break-all;';
+  document.body.appendChild(dbgEl);
+}
 const RTC_DEBUG = true; // set false to hide the on-screen overlay
 const _dbgLines = [];
 function rlog(s) {
@@ -334,15 +349,17 @@ playerManager.setMessageInterceptor(
     if (mimeType.startsWith("image/")) {
 
       if (source.includes("live=true")) {
-        startWebRTCMirror(source);     // WebRTC live mirror (replaces MJPEG /stream?live=true)
+        // WebRTC live mirror (replaces MJPEG /stream?live=true). Never let this
+        // throw out of the interceptor — an uncaught error unloads the receiver.
+        try { startWebRTCMirror(source); } catch (e) { rlog('startWebRTCMirror error: ' + e.message); }
       } else {
-        stopWebRTCMirror();
+        try { stopWebRTCMirror(); } catch (e) {}
         loadSingleImage(source);
 
       }
       return null
     } else {
-      stopWebRTCMirror();
+      try { stopWebRTCMirror(); } catch (e) {}
       liveStreamActive = false
       clearInterval(refreshInterval)
       // Nếu không phải ảnh, hiển thị videoPlayer và tải như cũ
