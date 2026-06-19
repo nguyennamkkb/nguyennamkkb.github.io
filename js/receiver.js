@@ -61,69 +61,48 @@ function rlog(s) {
 }
 
 const PC = window.RTCPeerConnection || window.webkitRTCPeerConnection;
-// A/V sync tuning (same values as the known-good browser receiver):
-// RTC_AUDIO_LAT = target audio buffer; RTC_VIDEO_DELAY = how much to hold the
-// video back (if the device honors playoutDelayHint).
-const RTC_AUDIO_LAT = 0.1, RTC_VIDEO_DELAY = 0.4, RTC_RATE = 44100;
 let rtcPC = null, rtcWS = null, rtcPend = [], rtcHasRemote = false;
-let rtcAc = null, rtcGain = null, rtcFirstPts = null, rtcEpoch = null, rtcUpto = 0;
+// We build our own MediaStream and add each arriving track to it, instead of
+// relying on ev.streams[0] (which can be empty or arrive out of order).
+let rtcStream = null;
 
-function rtcEnsureAudio() {
-  if (!rtcAc) {
-    const C = window.AudioContext || window.webkitAudioContext;
-    if (!C) return null;
-    rtcAc = new C(); rtcGain = rtcAc.createGain(); rtcGain.connect(rtcAc.destination);
-    rtcAc.onstatechange = () => rlog('AudioContext ' + rtcAc.state);
+// Attempt playback. Native Opus audio rides on the <video> element, so it must
+// be UNMUTED. If autoplay-with-sound is blocked, fall back to muted playback so
+// at least the video shows, then keep retrying to unmute.
+function rtcTryPlay() {
+  rtcVideo.muted = false;
+  rtcVideo.volume = 1.0;
+  const p = rtcVideo.play();
+  if (p && p.catch) {
+    p.then(() => rlog('video.play ok (unmuted)')).catch(e => {
+      rlog('unmuted play blocked: ' + e.message + ' → retry muted');
+      rtcVideo.muted = true;
+      rtcVideo.play().then(() => {
+        rlog('video.play ok (muted) — unmuting');
+        rtcVideo.muted = false;   // try to lift mute now that playback started
+      }).catch(e2 => rlog('muted play also failed: ' + e2.message));
+    });
   }
-  if (rtcAc.state === 'suspended') rtcAc.resume();
-  return rtcAc;
 }
-function rtcSchedule(i16, pts) {
-  const ctx = rtcEnsureAudio(); if (!ctx || ctx.state !== 'running') return;
-  const n = i16.length; if (!n) return;
-  const now = ctx.currentTime;
-  // Audio scheduling ported verbatim from the (clean) browser receiver:
-  // jitter buffer anchored at RTC_AUDIO_LAT, with underflow recovery (nudge epoch
-  // forward, capped at 300ms) and slow drift recovery (pull epoch back).
-  if (rtcUpto < now) { rtcFirstPts = null; rtcEpoch = null; }
-  let at;
-  if (rtcFirstPts === null) {
-    rtcFirstPts = pts; rtcEpoch = now + RTC_AUDIO_LAT; at = rtcEpoch;
-  } else {
-    at = rtcEpoch + (pts - rtcFirstPts);
-    if (at < now + 0.010) {
-      const shift = (now + RTC_AUDIO_LAT) - at;
-      const allowed = Math.max(0, 0.300 - (rtcEpoch - now));
-      const s = Math.min(shift, allowed);
-      if (s > 0) { rtcEpoch += s; at = rtcEpoch + (pts - rtcFirstPts); }
-    }
-    const head = at - now;
-    if (head > RTC_AUDIO_LAT * 1.5) { rtcEpoch -= (head - RTC_AUDIO_LAT) * 0.02; at = rtcEpoch + (pts - rtcFirstPts); }
-  }
-  const f = new Float32Array(n); for (let i = 0; i < n; i++) f[i] = i16[i] / 32768;
-  const buf = ctx.createBuffer(1, n, RTC_RATE); buf.copyToChannel(f, 0);
-  const src = ctx.createBufferSource(); src.buffer = buf; src.connect(rtcGain);
-  const safe = Math.max(at, now + 0.005, rtcUpto); src.start(safe); rtcUpto = safe + buf.duration;
-}
+
 function rtcSend(o) { if (rtcWS && rtcWS.readyState === 1) rtcWS.send(JSON.stringify(o)); }
 function rtcMakePC() {
   rtcPC = new PC({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+  rtcStream = new MediaStream();
+  rtcVideo.srcObject = rtcStream;
   rtcPC.ontrack = (ev) => {
-    rlog('ontrack ' + ev.track.kind);
-    if (ev.track.kind !== 'video') return;
-    rtcVideo.srcObject = ev.streams[0];
-    // Delay video to line up with the (slightly buffered) data-channel audio.
-    try { ev.receiver.jitterBufferTarget = RTC_VIDEO_DELAY * 1000; } catch (e) {}
-    try { ev.receiver.playoutDelayHint = RTC_VIDEO_DELAY; } catch (e) {}
-    rtcVideo.play().then(() => rlog('video.play ok')).catch(e => rlog('play fail: ' + e.message));
-  };
-  rtcPC.ondatachannel = (ev) => {
-    if (ev.channel.label !== 'audio') return;
-    ev.channel.binaryType = 'arraybuffer';
-    ev.channel.onmessage = (msg) => {
-      const b = msg.data; if (!(b instanceof ArrayBuffer) || b.byteLength < 8) return;
-      rtcSchedule(new Int16Array(b, 8), new DataView(b).getFloat64(0, true));
-    };
+    rlog('ontrack ' + ev.track.kind + ' id=' + ev.track.id + ' enabled=' + ev.track.enabled + ' muted=' + ev.track.muted);
+    // Add EVERY track (audio + video) to our stream, regardless of arrival order.
+    // Native lip-sync is handled by WebRTC via RTCP sender reports — we do NOT
+    // set playoutDelayHint (that was a hack for the old buffered DataChannel audio
+    // and would now make video lag the audio track).
+    try { rtcStream.addTrack(ev.track); } catch (e) { rlog('addTrack: ' + e.message); }
+    if (ev.track.kind === 'audio') {
+      // Observe whether the audio track ever unmutes (data actually flowing).
+      ev.track.onunmute = () => rlog('AUDIO track unmuted (data flowing)');
+      ev.track.onmute = () => rlog('AUDIO track muted (no data)');
+    }
+    rtcTryPlay();
   };
   rtcPC.onicecandidate = (ev) => { if (ev.candidate) rtcSend({ type: 'ice-candidate', candidate: ev.candidate }); };
   rtcPC.oniceconnectionstatechange = () => rlog('ICE ' + rtcPC.iceConnectionState);
@@ -161,7 +140,6 @@ function startWebRTCMirror(source) {
   mirrorImage.style.visibility = 'hidden';
   videoPlayer.style.visibility = 'hidden';
   rtcVideo.style.visibility = 'visible';
-  rtcEnsureAudio();             // Cast devices usually allow autoplay
   rlog('Connecting ' + sig);
   try {
     rtcWS = new WebSocket(sig);
@@ -176,17 +154,33 @@ function startWebRTCMirror(source) {
 function stopWebRTCMirror() {
   if (rtcWS) { try { rtcWS.close(); } catch (e) {} rtcWS = null; }
   if (rtcPC) { try { rtcPC.close(); } catch (e) {} rtcPC = null; }
-  rtcPend = []; rtcHasRemote = false;
-  rtcFirstPts = null; rtcEpoch = null; rtcUpto = 0;
-  if (rtcVideo) { rtcVideo.srcObject = null; rtcVideo.style.visibility = 'hidden'; }
+  rtcPend = []; rtcHasRemote = false; rtcStream = null;
+  if (rtcVideo) { rtcVideo.srcObject = null; rtcVideo.muted = true; rtcVideo.style.visibility = 'hidden'; }
 }
 
-// Periodic on-screen heartbeat so we can SEE frames arriving on the TV.
+// Periodic on-screen heartbeat. The audio bytesReceived counter is the decisive
+// diagnostic: if it climbs, audio IS arriving from the phone and any silence is a
+// playback/mute problem on this receiver. If it stays 0, the phone (sender ADM)
+// isn't producing an audio track — fix the sender, not this file.
+let _lastAudioBytes = 0;
 setInterval(() => {
-  if (rtcVideo && rtcVideo.videoWidth) {
-    const aLat = (rtcAc && rtcAc.state === 'runnin  g') ? (rtcUpto - rtcAc.currentTime) : -1;
-    rlog('video ' + rtcVideo.videoWidth + 'x' + rtcVideo.videoHeight + (rtcVideo.paused ? ' PAUSED' : ' playing') + ' | audioLat=' + aLat.toFixed(2) + 's');
-  }
+  if (!rtcPC) return;
+  const vInfo = (rtcVideo && rtcVideo.videoWidth)
+    ? rtcVideo.videoWidth + 'x' + rtcVideo.videoHeight + (rtcVideo.paused ? ' PAUSED' : ' playing') + ' vMuted=' + rtcVideo.muted
+    : 'no video frame yet';
+  rtcPC.getStats().then(stats => {
+    let aBytes = 0, aPackets = 0, vBytes = 0, haveAudioInbound = false;
+    stats.forEach(r => {
+      if (r.type === 'inbound-rtp' && r.kind === 'audio') {
+        haveAudioInbound = true;
+        aBytes = r.bytesReceived || 0; aPackets = r.packetsReceived || 0;
+      }
+      if (r.type === 'inbound-rtp' && r.kind === 'video') vBytes = r.bytesReceived || 0;
+    });
+    const aDelta = aBytes - _lastAudioBytes; _lastAudioBytes = aBytes;
+    const aState = !haveAudioInbound ? 'NO audio m-line' : ('audioBytes=' + aBytes + ' (+' + aDelta + ') pkts=' + aPackets);
+    rlog('video ' + vInfo + ' | ' + aState);
+  }).catch(e => rlog('getStats: ' + e.message));
 }, 3000);
 
 /**
