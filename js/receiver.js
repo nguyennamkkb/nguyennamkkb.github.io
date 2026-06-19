@@ -184,7 +184,7 @@ function stopWebRTCMirror() {
 // Periodic on-screen heartbeat so we can SEE frames arriving on the TV.
 setInterval(() => {
   if (rtcVideo && rtcVideo.videoWidth) {
-    const aLat = (rtcAc && rtcAc.state === 'running') ? (rtcUpto - rtcAc.currentTime) : -1;
+    const aLat = (rtcAc && rtcAc.state === 'runnin  g') ? (rtcUpto - rtcAc.currentTime) : -1;
     rlog('video ' + rtcVideo.videoWidth + 'x' + rtcVideo.videoHeight + (rtcVideo.paused ? ' PAUSED' : ' playing') + ' | audioLat=' + aLat.toFixed(2) + 's');
   }
 }, 3000);
