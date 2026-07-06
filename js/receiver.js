@@ -152,6 +152,11 @@ function startWebRTCMirror(source) {
   mirrorImage.style.visibility = 'hidden';
   videoPlayer.style.visibility = 'hidden';
   rtcVideo.style.visibility = 'visible';
+  try {
+    if (window.adapter && adapter.browserDetails) {
+      rlog('adapter OK: ' + adapter.browserDetails.browser + ' v' + adapter.browserDetails.version);
+    } else { rlog('adapter NOT loaded'); }
+  } catch (e) {}
   rlog('Connecting ' + sig);
   try {
     rtcWS = new WebSocket(sig);
