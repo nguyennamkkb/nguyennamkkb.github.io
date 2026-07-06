@@ -98,6 +98,18 @@ function rtcMakePC() {
     // and would now make video lag the audio track).
     try { rtcStream.addTrack(ev.track); } catch (e) { rlog('addTrack: ' + e.message); }
     if (ev.track.kind === 'audio') {
+      // Absorb WiFi jitter / brief RTP loss on weaker Cast hardware so NetEq
+      // does not run dry and conceal (the "bụp bụp"/warble). AUDIO ONLY — we do
+      // NOT touch the video receiver, so lip-sync is unaffected. ~150 ms. Never 0.
+      try {
+        if (ev.receiver && 'jitterBufferTarget' in ev.receiver) {
+          ev.receiver.jitterBufferTarget = 150; // ms (spec: DOMHighResTimeStamp)
+          rlog('audio jitterBufferTarget=150ms');
+        } else if (ev.receiver && 'playoutDelayHint' in ev.receiver) {
+          ev.receiver.playoutDelayHint = 0.15;  // seconds (legacy Chromium)
+          rlog('audio playoutDelayHint=0.15s');
+        }
+      } catch (e) { rlog('jitterBuffer set failed: ' + e.message); }
       // Observe whether the audio track ever unmutes (data actually flowing).
       ev.track.onunmute = () => rlog('AUDIO track unmuted (data flowing)');
       ev.track.onmute = () => rlog('AUDIO track muted (no data)');
@@ -162,23 +174,32 @@ function stopWebRTCMirror() {
 // diagnostic: if it climbs, audio IS arriving from the phone and any silence is a
 // playback/mute problem on this receiver. If it stays 0, the phone (sender ADM)
 // isn't producing an audio track — fix the sender, not this file.
-let _lastAudioBytes = 0;
+// Decisive audio diagnostics:
+//  • audioBytes climbing → audio IS arriving from the phone.
+//  • packetsLost climbing / concealedSamples climbing → WiFi RTP loss → Opus PLC
+//    warble ("méo"). If this is the cause, no resampler/APM tweak helps — only a
+//    loss-free transport (e.g. HLS over TCP) or more FEC will.
+let _lastAudioBytes = 0, _lastLost = 0, _lastConcealed = 0;
 setInterval(() => {
   if (!rtcPC) return;
   const vInfo = (rtcVideo && rtcVideo.videoWidth)
     ? rtcVideo.videoWidth + 'x' + rtcVideo.videoHeight + (rtcVideo.paused ? ' PAUSED' : ' playing') + ' vMuted=' + rtcVideo.muted
     : 'no video frame yet';
   rtcPC.getStats().then(stats => {
-    let aBytes = 0, aPackets = 0, vBytes = 0, haveAudioInbound = false;
+    let aBytes = 0, aPackets = 0, aLost = 0, aJitter = 0, concealed = 0, haveAudioInbound = false;
     stats.forEach(r => {
       if (r.type === 'inbound-rtp' && r.kind === 'audio') {
         haveAudioInbound = true;
         aBytes = r.bytesReceived || 0; aPackets = r.packetsReceived || 0;
+        aLost = r.packetsLost || 0; aJitter = r.jitter || 0;
+        concealed = r.concealedSamples || 0;
       }
-      if (r.type === 'inbound-rtp' && r.kind === 'video') vBytes = r.bytesReceived || 0;
     });
     const aDelta = aBytes - _lastAudioBytes; _lastAudioBytes = aBytes;
-    const aState = !haveAudioInbound ? 'NO audio m-line' : ('audioBytes=' + aBytes + ' (+' + aDelta + ') pkts=' + aPackets);
+    const lostDelta = aLost - _lastLost; _lastLost = aLost;
+    const concDelta = concealed - _lastConcealed; _lastConcealed = concealed;
+    const aState = !haveAudioInbound ? 'NO audio m-line'
+      : ('aBytes+' + aDelta + ' lost=' + aLost + '(+' + lostDelta + ') conceal+' + concDelta + ' jit=' + aJitter.toFixed(3));
     rlog('video ' + vInfo + ' | ' + aState);
   }).catch(e => rlog('getStats: ' + e.message));
 }, 3000);
