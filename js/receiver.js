@@ -61,6 +61,10 @@ function rlog(s) {
 }
 
 const PC = window.RTCPeerConnection || window.webkitRTCPeerConnection;
+// On this Chromecast the audio arrives ~1s LATER than the video. Hold the video
+// back by this much (playout delay on the VIDEO receiver) so it waits for the
+// sound → lip-sync. Tune 800–1200ms to taste. Hint only (UA caps at 4000ms).
+const VIDEO_DELAY_MS = 1000;
 let rtcPC = null, rtcWS = null, rtcPend = [], rtcHasRemote = false;
 // We build our own MediaStream and add each arriving track to it, instead of
 // relying on ev.streams[0] (which can be empty or arrive out of order).
@@ -93,15 +97,23 @@ function rtcMakePC() {
   rtcPC.ontrack = (ev) => {
     rlog('ontrack ' + ev.track.kind + ' id=' + ev.track.id + ' enabled=' + ev.track.enabled + ' muted=' + ev.track.muted);
     // Add EVERY track (audio + video) to our stream, regardless of arrival order.
-    // Native lip-sync is handled by WebRTC via RTCP sender reports — we do NOT
-    // set playoutDelayHint (that was a hack for the old buffered DataChannel audio
-    // and would now make video lag the audio track).
     try { rtcStream.addTrack(ev.track); } catch (e) { rlog('addTrack: ' + e.message); }
+    if (ev.track.kind === 'video') {
+      // Audio comes ~1s late on this Chromecast, so DELAY the video playout to
+      // wait for it (lip-sync). We only hold the video back — audio is left to
+      // play as early as possible. See VIDEO_DELAY_MS to tune.
+      try {
+        if (ev.receiver && 'jitterBufferTarget' in ev.receiver) {
+          ev.receiver.jitterBufferTarget = VIDEO_DELAY_MS;         // ms (spec)
+          rlog('video jitterBufferTarget=' + VIDEO_DELAY_MS + 'ms (wait for audio)');
+        } else if (ev.receiver && 'playoutDelayHint' in ev.receiver) {
+          ev.receiver.playoutDelayHint = VIDEO_DELAY_MS / 1000;    // s (legacy)
+          rlog('video playoutDelayHint=' + (VIDEO_DELAY_MS / 1000) + 's (wait for audio)');
+        }
+      } catch (e) { rlog('video delay failed: ' + e.message); }
+    }
     if (ev.track.kind === 'audio') {
-      // Do NOT force jitterBufferTarget/playoutDelayHint on audio: that adds a
-      // fixed playout delay to audio and makes it lag the video. Let WebRTC keep
-      // A/V aligned continuously via RTCP sender reports (native lip-sync).
-      // Observe whether the audio track ever unmutes (data actually flowing).
+      // Do NOT delay audio — it is already the late one. Just observe its state.
       ev.track.onunmute = () => rlog('AUDIO track unmuted (data flowing)');
       ev.track.onmute = () => rlog('AUDIO track muted (no data)');
     }
