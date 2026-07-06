@@ -98,18 +98,9 @@ function rtcMakePC() {
     // and would now make video lag the audio track).
     try { rtcStream.addTrack(ev.track); } catch (e) { rlog('addTrack: ' + e.message); }
     if (ev.track.kind === 'audio') {
-      // Absorb WiFi jitter / brief RTP loss on weaker Cast hardware so NetEq
-      // does not run dry and conceal (the "bụp bụp"/warble). AUDIO ONLY — we do
-      // NOT touch the video receiver, so lip-sync is unaffected. ~150 ms. Never 0.
-      try {
-        if (ev.receiver && 'jitterBufferTarget' in ev.receiver) {
-          ev.receiver.jitterBufferTarget = 150; // ms (spec: DOMHighResTimeStamp)
-          rlog('audio jitterBufferTarget=150ms');
-        } else if (ev.receiver && 'playoutDelayHint' in ev.receiver) {
-          ev.receiver.playoutDelayHint = 0.15;  // seconds (legacy Chromium)
-          rlog('audio playoutDelayHint=0.15s');
-        }
-      } catch (e) { rlog('jitterBuffer set failed: ' + e.message); }
+      // Do NOT force jitterBufferTarget/playoutDelayHint on audio: that adds a
+      // fixed playout delay to audio and makes it lag the video. Let WebRTC keep
+      // A/V aligned continuously via RTCP sender reports (native lip-sync).
       // Observe whether the audio track ever unmutes (data actually flowing).
       ev.track.onunmute = () => rlog('AUDIO track unmuted (data flowing)');
       ev.track.onmute = () => rlog('AUDIO track muted (no data)');
