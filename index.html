@@ -66,6 +66,10 @@ Cast.
 
 
   <footer>
+    <!-- webrtc-adapter: chuẩn hoá WebRTC API trên Chromium của Chromecast.
+         Load dạng script thường (chạy TRƯỚC module deferred) để shim
+         RTCPeerConnection/ontrack/ICE kịp trước khi receiver.js chạy. -->
+    <script src="js/adapter.js"></script>
     <script src="js/receiver.js" type="module"></script>
     <script>
 
