@@ -49,7 +49,7 @@ if (!dbgEl) {
   dbgEl.style.cssText = 'position:fixed;top:0;left:0;right:0;max-height:45%;overflow:hidden;z-index:50;padding:8px;background:rgba(0,0,0,.5);color:#0f0;font:16px/1.3 monospace;white-space:pre-wrap;word-break:break-all;';
   document.body.appendChild(dbgEl);
 }
-const RTC_DEBUG = true; // set false to hide the on-screen overlay
+const RTC_DEBUG = false; // set false to hide the on-screen overlay
 const _dbgLines = [];
 function rlog(s) {
   if (!RTC_DEBUG) return;
