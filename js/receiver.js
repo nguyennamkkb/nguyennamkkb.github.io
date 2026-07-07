@@ -61,10 +61,10 @@ function rlog(s) {
 }
 
 const PC = window.RTCPeerConnection || window.webkitRTCPeerConnection;
-// On this Chromecast the audio arrives ~1s LATER than the video. Hold the video
+// On this Chromecast the audio arrives ~0.8s LATER than the video. Hold the video
 // back by this much (playout delay on the VIDEO receiver) so it waits for the
-// sound → lip-sync. Tune 800–1200ms to taste. Hint only (UA caps at 4000ms).
-const VIDEO_DELAY_MS = 1000;
+// sound → lip-sync. Tune 600–1200ms to taste. Hint only (UA caps at 4000ms).
+const VIDEO_DELAY_MS = 800;
 let rtcPC = null, rtcWS = null, rtcPend = [], rtcHasRemote = false;
 // We build our own MediaStream and add each arriving track to it, instead of
 // relying on ev.streams[0] (which can be empty or arrive out of order).
