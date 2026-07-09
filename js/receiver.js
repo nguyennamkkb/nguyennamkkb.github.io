@@ -14,50 +14,35 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
+"use strict";
 
-'use strict';
-
-import { CastQueue } from './queuing.js';
-import { MediaFetcher } from './media_fetcher.js';
-import { AdsTracker, SenderTracker, ContentTracker } from './cast_analytics.js';
+import { CastQueue } from "./queuing.js";
+import { MediaFetcher } from "./media_fetcher.js";
+import { AdsTracker, SenderTracker, ContentTracker } from "./cast_analytics.js";
 const mirrorImage = document.getElementById("mirrorImage");
 const videoPlayer = document.getElementById("videoPlayer");
-const message = document.getElementById('message');
+const message = document.getElementById("message");
 var liveStreamActive = false;
 var refreshInterval = null;
-var imageErrorCnt = 20
+var imageErrorCnt = 20;
 
 /* =====================================================================
  * WebRTC live mirror — replaces the MJPEG /stream?live=true polling.
  * The phone (broadcast extension) is the OFFERER on ws://<ip>:8080/signaling;
  * this receiver is the ANSWERER. Video → <video>, audio → data channel + Web Audio.
  * ===================================================================== */
-// Create the elements programmatically if index.html wasn't updated — this keeps
+// Create the element programmatically if index.html wasn't updated — this keeps
 // the receiver from crashing (a thrown error in LOAD unloads the whole app).
-let rtcVideo = document.getElementById('rtcVideo');
+let rtcVideo = document.getElementById("rtcVideo");
 if (!rtcVideo) {
-  rtcVideo = document.createElement('video');
-  rtcVideo.id = 'rtcVideo';
-  rtcVideo.autoplay = true; rtcVideo.muted = true; rtcVideo.setAttribute('playsinline', '');
-  rtcVideo.style.cssText = 'position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;background:#000;visibility:hidden;';
+  rtcVideo = document.createElement("video");
+  rtcVideo.id = "rtcVideo";
+  rtcVideo.autoplay = true;
+  rtcVideo.muted = true;
+  rtcVideo.setAttribute("playsinline", "");
+  rtcVideo.style.cssText =
+    "position:absolute;top:0;left:0;width:100%;height:100%;object-fit:contain;background:#000;visibility:hidden;";
   document.body.appendChild(rtcVideo);
-}
-let dbgEl = document.getElementById('dbg');
-if (!dbgEl) {
-  dbgEl = document.createElement('div');
-  dbgEl.id = 'dbg';
-  dbgEl.style.cssText = 'position:fixed;top:0;left:0;right:0;max-height:45%;overflow:hidden;z-index:50;padding:8px;background:rgba(0,0,0,.5);color:#0f0;font:16px/1.3 monospace;white-space:pre-wrap;word-break:break-all;';
-  document.body.appendChild(dbgEl);
-}
-const RTC_DEBUG = false; // set false to hide the on-screen overlay
-const _dbgLines = [];
-function rlog(s) {
-  if (!RTC_DEBUG) return;
-  const t = new Date().toISOString().substr(11, 8);
-  _dbgLines.push(t + '  ' + s);
-  while (_dbgLines.length > 14) _dbgLines.shift();
-  if (dbgEl) { dbgEl.style.display = 'block'; dbgEl.textContent = _dbgLines.join('\n'); }
-  try { console.log('[rtc]', s); } catch (e) {}
 }
 
 const PC = window.RTCPeerConnection || window.webkitRTCPeerConnection;
@@ -65,7 +50,10 @@ const PC = window.RTCPeerConnection || window.webkitRTCPeerConnection;
 // back by this much (playout delay on the VIDEO receiver) so it waits for the
 // sound → lip-sync. Tune 600–1200ms to taste. Hint only (UA caps at 4000ms).
 const VIDEO_DELAY_MS = 900;
-let rtcPC = null, rtcWS = null, rtcPend = [], rtcHasRemote = false;
+let rtcPC = null,
+  rtcWS = null,
+  rtcPend = [],
+  rtcHasRemote = false;
 // We build our own MediaStream and add each arriving track to it, instead of
 // relying on ev.streams[0] (which can be empty or arrive out of order).
 let rtcStream = null;
@@ -78,62 +66,72 @@ function rtcTryPlay() {
   rtcVideo.volume = 1.0;
   const p = rtcVideo.play();
   if (p && p.catch) {
-    p.then(() => rlog('video.play ok (unmuted)')).catch(e => {
-      rlog('unmuted play blocked: ' + e.message + ' → retry muted');
+    p.catch(() => {
+      // Unmuted autoplay blocked → fall back to muted, then lift mute once playing.
       rtcVideo.muted = true;
-      rtcVideo.play().then(() => {
-        rlog('video.play ok (muted) — unmuting');
-        rtcVideo.muted = false;   // try to lift mute now that playback started
-      }).catch(e2 => rlog('muted play also failed: ' + e2.message));
+      rtcVideo
+        .play()
+        .then(() => {
+          rtcVideo.muted = false;
+        })
+        .catch((e) => console.warn("[rtc] play failed:", e.message));
     });
   }
 }
 
-function rtcSend(o) { if (rtcWS && rtcWS.readyState === 1) rtcWS.send(JSON.stringify(o)); }
+function rtcSend(o) {
+  if (rtcWS && rtcWS.readyState === 1) rtcWS.send(JSON.stringify(o));
+}
 function rtcMakePC() {
-  rtcPC = new PC({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+  rtcPC = new PC({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
   rtcStream = new MediaStream();
   rtcVideo.srcObject = rtcStream;
   rtcPC.ontrack = (ev) => {
-    rlog('ontrack ' + ev.track.kind + ' id=' + ev.track.id + ' enabled=' + ev.track.enabled + ' muted=' + ev.track.muted);
     // Add EVERY track (audio + video) to our stream, regardless of arrival order.
-    try { rtcStream.addTrack(ev.track); } catch (e) { rlog('addTrack: ' + e.message); }
-    if (ev.track.kind === 'video') {
+    try {
+      rtcStream.addTrack(ev.track);
+    } catch (e) {}
+    if (ev.track.kind === "video") {
       // Audio comes ~1s late on this Chromecast, so DELAY the video playout to
       // wait for it (lip-sync). We only hold the video back — audio is left to
       // play as early as possible. See VIDEO_DELAY_MS to tune.
       try {
-        if (ev.receiver && 'jitterBufferTarget' in ev.receiver) {
-          ev.receiver.jitterBufferTarget = VIDEO_DELAY_MS;         // ms (spec)
-          rlog('video jitterBufferTarget=' + VIDEO_DELAY_MS + 'ms (wait for audio)');
-        } else if (ev.receiver && 'playoutDelayHint' in ev.receiver) {
-          ev.receiver.playoutDelayHint = VIDEO_DELAY_MS / 1000;    // s (legacy)
-          rlog('video playoutDelayHint=' + (VIDEO_DELAY_MS / 1000) + 's (wait for audio)');
+        if (ev.receiver && "jitterBufferTarget" in ev.receiver) {
+          ev.receiver.jitterBufferTarget = VIDEO_DELAY_MS; // ms (spec)
+        } else if (ev.receiver && "playoutDelayHint" in ev.receiver) {
+          ev.receiver.playoutDelayHint = VIDEO_DELAY_MS / 1000; // s (legacy)
         }
-      } catch (e) { rlog('video delay failed: ' + e.message); }
-    }
-    if (ev.track.kind === 'audio') {
-      // Do NOT delay audio — it is already the late one. Just observe its state.
-      ev.track.onunmute = () => rlog('AUDIO track unmuted (data flowing)');
-      ev.track.onmute = () => rlog('AUDIO track muted (no data)');
+      } catch (e) {}
     }
     rtcTryPlay();
   };
-  rtcPC.onicecandidate = (ev) => { if (ev.candidate) rtcSend({ type: 'ice-candidate', candidate: ev.candidate }); };
-  rtcPC.oniceconnectionstatechange = () => rlog('ICE ' + rtcPC.iceConnectionState);
-  rtcPC.onconnectionstatechange = () => rlog('PC ' + rtcPC.connectionState);
+  rtcPC.onicecandidate = (ev) => {
+    if (ev.candidate)
+      rtcSend({ type: "ice-candidate", candidate: ev.candidate });
+  };
   return rtcPC;
 }
 function rtcHandle(m) {
-  if (m.type === 'offer') {
-    rlog('offer received');
+  if (m.type === "offer") {
     const p = rtcMakePC();
-    p.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: m.sdp }))
-      .then(() => { rtcHasRemote = true; rtcPend.forEach(c => p.addIceCandidate(new RTCIceCandidate(c))); rtcPend = []; return p.createAnswer(); })
-      .then(a => p.setLocalDescription(a).then(() => { rtcSend({ type: 'answer', sdp: a.sdp }); rlog('answer sent'); }))
-      .catch(e => rlog('negotiation fail: ' + e.message));
-  } else if (m.type === 'ice-candidate') {
-    if (rtcHasRemote && rtcPC) rtcPC.addIceCandidate(new RTCIceCandidate(m.candidate)).catch(() => {});
+    p.setRemoteDescription(
+      new RTCSessionDescription({ type: "offer", sdp: m.sdp }),
+    )
+      .then(() => {
+        rtcHasRemote = true;
+        rtcPend.forEach((c) => p.addIceCandidate(new RTCIceCandidate(c)));
+        rtcPend = [];
+        return p.createAnswer();
+      })
+      .then((a) =>
+        p.setLocalDescription(a).then(() => {
+          rtcSend({ type: "answer", sdp: a.sdp });
+        }),
+      )
+      .catch((e) => console.warn("[rtc] negotiation fail:", e.message));
+  } else if (m.type === "ice-candidate") {
+    if (rtcHasRemote && rtcPC)
+      rtcPC.addIceCandidate(new RTCIceCandidate(m.candidate)).catch(() => {});
     else rtcPend.push(m.candidate);
   }
 }
@@ -142,75 +140,69 @@ function rtcHandle(m) {
 function startWebRTCMirror(source) {
   // Stop any legacy MJPEG polling.
   liveStreamActive = false;
-  if (refreshInterval) { clearInterval(refreshInterval); refreshInterval = null; }
+  if (refreshInterval) {
+    clearInterval(refreshInterval);
+    refreshInterval = null;
+  }
 
-  if (!PC) { rlog('FATAL: RTCPeerConnection không hỗ trợ trên thiết bị'); return; }
+  if (!PC) {
+    console.warn("[rtc] RTCPeerConnection không hỗ trợ trên thiết bị");
+    return;
+  }
 
   let host = null;
-  try { host = new URL(source).hostname; } catch (e) {}
-  if (!host) { rlog('FATAL: không lấy được IP từ ' + source); return; }
-  const sig = 'ws://' + host + ':8080/signaling';
-
-  stopWebRTCMirror();           // tear down any previous session
-  mirrorImage.style.visibility = 'hidden';
-  videoPlayer.style.visibility = 'hidden';
-  rtcVideo.style.visibility = 'visible';
   try {
-    if (window.adapter && adapter.browserDetails) {
-      rlog('adapter OK: ' + adapter.browserDetails.browser + ' v' + adapter.browserDetails.version);
-    } else { rlog('adapter NOT loaded'); }
+    host = new URL(source).hostname;
   } catch (e) {}
-  rlog('Connecting ' + sig);
+  if (!host) {
+    console.warn("[rtc] không lấy được IP từ", source);
+    return;
+  }
+  const sig = "ws://" + host + ":8080/signaling";
+
+  stopWebRTCMirror(); // tear down any previous session
+  mirrorImage.style.visibility = "hidden";
+  videoPlayer.style.visibility = "hidden";
+  rtcVideo.style.visibility = "visible";
   try {
     rtcWS = new WebSocket(sig);
-    rtcWS.onopen = () => rlog('Signaling OPEN');
-    rtcWS.onerror = () => rlog('Signaling ERROR (mixed-content? wss cần thiết?)');
-    rtcWS.onclose = () => rlog('Signaling CLOSED');
-    rtcWS.onmessage = (ev) => { let m; try { m = JSON.parse(ev.data); } catch (e) { return; } rtcHandle(m); };
-  } catch (e) { rlog('WebSocket lỗi: ' + e.message); }
+    rtcWS.onmessage = (ev) => {
+      let m;
+      try {
+        m = JSON.parse(ev.data);
+      } catch (e) {
+        return;
+      }
+      rtcHandle(m);
+    };
+  } catch (e) {
+    console.warn("[rtc] WebSocket lỗi:", e.message);
+  }
 }
 
 /** Tear down the WebRTC mirror (when switching to a photo / video cast). */
 function stopWebRTCMirror() {
-  if (rtcWS) { try { rtcWS.close(); } catch (e) {} rtcWS = null; }
-  if (rtcPC) { try { rtcPC.close(); } catch (e) {} rtcPC = null; }
-  rtcPend = []; rtcHasRemote = false; rtcStream = null;
-  if (rtcVideo) { rtcVideo.srcObject = null; rtcVideo.muted = true; rtcVideo.style.visibility = 'hidden'; }
+  if (rtcWS) {
+    try {
+      rtcWS.close();
+    } catch (e) {}
+    rtcWS = null;
+  }
+  if (rtcPC) {
+    try {
+      rtcPC.close();
+    } catch (e) {}
+    rtcPC = null;
+  }
+  rtcPend = [];
+  rtcHasRemote = false;
+  rtcStream = null;
+  if (rtcVideo) {
+    rtcVideo.srcObject = null;
+    rtcVideo.muted = true;
+    rtcVideo.style.visibility = "hidden";
+  }
 }
-
-// Periodic on-screen heartbeat. The audio bytesReceived counter is the decisive
-// diagnostic: if it climbs, audio IS arriving from the phone and any silence is a
-// playback/mute problem on this receiver. If it stays 0, the phone (sender ADM)
-// isn't producing an audio track — fix the sender, not this file.
-// Decisive audio diagnostics:
-//  • audioBytes climbing → audio IS arriving from the phone.
-//  • packetsLost climbing / concealedSamples climbing → WiFi RTP loss → Opus PLC
-//    warble ("méo"). If this is the cause, no resampler/APM tweak helps — only a
-//    loss-free transport (e.g. HLS over TCP) or more FEC will.
-let _lastAudioBytes = 0, _lastLost = 0, _lastConcealed = 0;
-setInterval(() => {
-  if (!rtcPC) return;
-  const vInfo = (rtcVideo && rtcVideo.videoWidth)
-    ? rtcVideo.videoWidth + 'x' + rtcVideo.videoHeight + (rtcVideo.paused ? ' PAUSED' : ' playing') + ' vMuted=' + rtcVideo.muted
-    : 'no video frame yet';
-  rtcPC.getStats().then(stats => {
-    let aBytes = 0, aPackets = 0, aLost = 0, aJitter = 0, concealed = 0, haveAudioInbound = false;
-    stats.forEach(r => {
-      if (r.type === 'inbound-rtp' && r.kind === 'audio') {
-        haveAudioInbound = true;
-        aBytes = r.bytesReceived || 0; aPackets = r.packetsReceived || 0;
-        aLost = r.packetsLost || 0; aJitter = r.jitter || 0;
-        concealed = r.concealedSamples || 0;
-      }
-    });
-    const aDelta = aBytes - _lastAudioBytes; _lastAudioBytes = aBytes;
-    const lostDelta = aLost - _lastLost; _lastLost = aLost;
-    const concDelta = concealed - _lastConcealed; _lastConcealed = concealed;
-    const aState = !haveAudioInbound ? 'NO audio m-line'
-      : ('aBytes+' + aDelta + ' lost=' + aLost + '(+' + lostDelta + ') conceal+' + concDelta + ' jit=' + aJitter.toFixed(3));
-    rlog('video ' + vInfo + ' | ' + aState);
-  }).catch(e => rlog('getStats: ' + e.message));
-}, 3000);
 
 /**
  * @fileoverview This sample demonstrates how to build your own Web Receiver for
@@ -219,7 +211,6 @@ setInterval(() => {
  * added functionality can be enabled by uncommenting some of the code blocks
  * below.
  */
-
 
 /*
  * Convenience variables to access the CastReceiverContext and PlayerManager.
@@ -230,13 +221,13 @@ const playerManager = context.getPlayerManager();
 /*
  * Constant to be used for fetching media by entity from sample repository.
  */
-const ID_REGEX = '\/?([^\/]+)\/?$';
+const ID_REGEX = "\/?([^\/]+)\/?$";
 
 /**
  * Debug Logger
  */
 const castDebugLogger = cast.debug.CastDebugLogger.getInstance();
-const LOG_RECEIVER_TAG = 'Receiver';
+const LOG_RECEIVER_TAG = "Receiver";
 
 /*
  * WARNING: Make sure to turn off debug logger for production release as it
@@ -263,10 +254,9 @@ const LOG_RECEIVER_TAG = 'Receiver';
  * Set verbosity level for Core events.
  */
 castDebugLogger.loggerLevelByEvents = {
-  'cast.framework.events.category.CORE':
-    cast.framework.LoggerLevel.INFO,
-  'cast.framework.events.EventType.MEDIA_STATUS':
-    cast.framework.LoggerLevel.DEBUG
+  "cast.framework.events.category.CORE": cast.framework.LoggerLevel.INFO,
+  "cast.framework.events.EventType.MEDIA_STATUS":
+    cast.framework.LoggerLevel.DEBUG,
 };
 
 if (!castDebugLogger.loggerLevelByTags) {
@@ -284,15 +274,21 @@ castDebugLogger.loggerLevelByTags[LOG_RECEIVER_TAG] =
  * Example of how to listen for events on playerManager.
  */
 playerManager.addEventListener(
-  cast.framework.events.EventType.ERROR, (event) => {
-    castDebugLogger.error(LOG_RECEIVER_TAG,
-      'Detailed Error Code - ' + event.detailedErrorCode);
+  cast.framework.events.EventType.ERROR,
+  (event) => {
+    castDebugLogger.error(
+      LOG_RECEIVER_TAG,
+      "Detailed Error Code - " + event.detailedErrorCode,
+    );
     if (event && event.detailedErrorCode == 905) {
-      castDebugLogger.error(LOG_RECEIVER_TAG,
-        'LOAD_FAILED: Verify the load request is set up ' +
-        'properly and the media is able to play.');
+      castDebugLogger.error(
+        LOG_RECEIVER_TAG,
+        "LOAD_FAILED: Verify the load request is set up " +
+          "properly and the media is able to play.",
+      );
     }
-  });
+  },
+);
 
 /*
  * Example analytics tracking implementation. To enable this functionality see
@@ -314,66 +310,43 @@ const contentTracker = new ContentTracker();
  * @return {Promise} An empty promise.
  */
 function addBreaks(mediaInformation) {
-  castDebugLogger.debug(LOG_RECEIVER_TAG, "addBreaks: " +
-    JSON.stringify(mediaInformation));
-  return MediaFetcher.fetchMediaById('fbb_ad')
-    .then((clip1) => {
-      mediaInformation.breakClips = [
-        {
-          id: 'fbb_ad',
-          title: clip1.title,
-          contentUrl: clip1.stream.dash,
-          contentType: 'application/dash+xml',
-          whenSkippable: 5
-        }
-      ];
+  castDebugLogger.debug(
+    LOG_RECEIVER_TAG,
+    "addBreaks: " + JSON.stringify(mediaInformation),
+  );
+  return MediaFetcher.fetchMediaById("fbb_ad").then((clip1) => {
+    mediaInformation.breakClips = [
+      {
+        id: "fbb_ad",
+        title: clip1.title,
+        contentUrl: clip1.stream.dash,
+        contentType: "application/dash+xml",
+        whenSkippable: 5,
+      },
+    ];
 
-      mediaInformation.breaks = [
-        {
-          id: 'pre-roll',
-          breakClipIds: ['fbb_ad'],
-          position: 0
-        }
-      ];
-    });
+    mediaInformation.breaks = [
+      {
+        id: "pre-roll",
+        breakClipIds: ["fbb_ad"],
+        position: 0,
+      },
+    ];
+  });
 }
 
 /*
  * Intercept the LOAD request to load and set the contentUrl.
  */
-// playerManager.setMessageInterceptor(
-//   cast.framework.messages.MessageType.LOAD,
-//   loadRequestData => {
-//       console.log("📡 Nhận yêu cầu LOAD:", loadRequestData);
-//       message.textContent += "📷 Live stream mode activated!";
-//       if (!loadRequestData.media || !loadRequestData.media.contentUrl) {
-//         message.textContent += '⚠️ Không có contentUrl trong media.';
-//           console.log('❌ Không có contentUrl:', loadRequestData.media);
-//           return null;
-//       }
-
-//       const imageUrl = loadRequestData.media.contentUrl;
-//       console.log('✅ Nhận URL:', imageUrl);
-
-//       if (imageUrl.includes("live=true")) {
-//         message.textContent += "📷 Live stream mode activated!";
-//           startLiveImageStream(imageUrl);
-//       } else {
-//         message.textContent += "📷 Loading single image...";
-//           loadSingleImage(imageUrl);
-//       }
-//       return null;
-//   }
-// );
 playerManager.setMessageInterceptor(
-  cast.framework.messages.MessageType.LOAD, loadRequestData => {
-
+  cast.framework.messages.MessageType.LOAD,
+  (loadRequestData) => {
     // Dừng live stream nếu có yêu cầu mới
 
     if (!loadRequestData || !loadRequestData.media) {
       return new cast.framework.messages.ErrorData(
         cast.framework.messages.ErrorType.LOAD_FAILED,
-        cast.framework.messages.ErrorReason.INVALID_REQUEST
+        cast.framework.messages.ErrorReason.INVALID_REQUEST,
       );
     }
     let media = loadRequestData.media;
@@ -383,49 +356,57 @@ playerManager.setMessageInterceptor(
     if (!source || !source.match(ID_REGEX)) {
       return new cast.framework.messages.ErrorData(
         cast.framework.messages.ErrorType.LOAD_FAILED,
-        cast.framework.messages.ErrorReason.INVALID_REQUEST
+        cast.framework.messages.ErrorReason.INVALID_REQUEST,
       );
     }
 
     let sourceId = source.match(ID_REGEX)[1];
 
     if (mimeType.startsWith("image/")) {
-
       if (source.includes("live=true")) {
         // WebRTC live mirror (replaces MJPEG /stream?live=true). Never let this
         // throw out of the interceptor — an uncaught error unloads the receiver.
-        try { startWebRTCMirror(source); } catch (e) { rlog('startWebRTCMirror error: ' + e.message); }
+        try {
+          startWebRTCMirror(source);
+        } catch (e) {
+          console.warn("[rtc] startWebRTCMirror error:", e.message);
+        }
       } else {
-        try { stopWebRTCMirror(); } catch (e) {}
+        try {
+          stopWebRTCMirror();
+        } catch (e) {}
         loadSingleImage(source);
-
       }
-      return null
+      return null;
     } else {
-      try { stopWebRTCMirror(); } catch (e) {}
-      liveStreamActive = false
-      clearInterval(refreshInterval)
+      try {
+        stopWebRTCMirror();
+      } catch (e) {}
+      liveStreamActive = false;
+      clearInterval(refreshInterval);
       // Nếu không phải ảnh, hiển thị videoPlayer và tải như cũ
-      mirrorImage.style.visibility = 'hidden';
-      videoPlayer.style.visibility = 'visible';
+      mirrorImage.style.visibility = "hidden";
+      videoPlayer.style.visibility = "visible";
 
-      if (sourceId.includes('.')) {
-        castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received full URL");
+      if (sourceId.includes(".")) {
+        castDebugLogger.debug(
+          LOG_RECEIVER_TAG,
+          "Interceptor received full URL",
+        );
         media.contentUrl = source;
         return loadRequestData;
       } else {
         castDebugLogger.debug(LOG_RECEIVER_TAG, "Interceptor received ID");
-        return MediaFetcher.fetchMediaInformationById(sourceId)
-          .then((mediaInformation) => {
+        return MediaFetcher.fetchMediaInformationById(sourceId).then(
+          (mediaInformation) => {
             loadRequestData.media = mediaInformation;
             return loadRequestData;
-          })
+          },
+        );
       }
     }
-  }
+  },
 );
-
-
 
 // Kiểm tra định dạng hình ảnh
 function isImageFormat(url) {
@@ -438,8 +419,8 @@ function loadSingleImage(url) {
 
   mirrorImage.src = url;
   mirrorImage.onload = function () {
-    mirrorImage.style.visibility = 'visible';
-    videoPlayer.style.visibility = 'hidden';
+    mirrorImage.style.visibility = "visible";
+    videoPlayer.style.visibility = "hidden";
     // message.textContent += "✅ Image loaded successfully!";
   };
   mirrorImage.onerror = function () {
@@ -456,19 +437,19 @@ controls.clearDefaultSlotAssignments();
 // Assign buttons to control slots.
 controls.assignButton(
   cast.framework.ui.ControlsSlot.SLOT_SECONDARY_1,
-  cast.framework.ui.ControlsButton.QUEUE_PREV
+  cast.framework.ui.ControlsButton.QUEUE_PREV,
 );
 controls.assignButton(
   cast.framework.ui.ControlsSlot.SLOT_PRIMARY_1,
-  cast.framework.ui.ControlsButton.CAPTIONS
+  cast.framework.ui.ControlsButton.CAPTIONS,
 );
 controls.assignButton(
   cast.framework.ui.ControlsSlot.SLOT_PRIMARY_2,
-  cast.framework.ui.ControlsButton.SEEK_FORWARD_15
+  cast.framework.ui.ControlsButton.SEEK_FORWARD_15,
 );
 controls.assignButton(
   cast.framework.ui.ControlsSlot.SLOT_SECONDARY_2,
-  cast.framework.ui.ControlsButton.QUEUE_NEXT
+  cast.framework.ui.ControlsButton.QUEUE_NEXT,
 );
 
 /*
@@ -485,17 +466,19 @@ castReceiverOptions.playbackConfig = playbackConfig;
 castReceiverOptions.disableIdleTimeout = true;
 castReceiverOptions.maxInactivity = 3600;
 
-castDebugLogger.info(LOG_RECEIVER_TAG,
-  `autoResumeDuration set to: ${playbackConfig.autoResumeDuration}`);
+castDebugLogger.info(
+  LOG_RECEIVER_TAG,
+  `autoResumeDuration set to: ${playbackConfig.autoResumeDuration}`,
+);
 
-/* 
+/*
  * Set the SupportedMediaCommands.
  */
 castReceiverOptions.supportedCommands =
   cast.framework.messages.Command.ALL_BASIC_MEDIA |
   cast.framework.messages.Command.QUEUE_PREV |
   cast.framework.messages.Command.QUEUE_NEXT |
-  cast.framework.messages.Command.STREAM_TRANSFER
+  cast.framework.messages.Command.STREAM_TRANSFER;
 
 /*
  * Optionally enable a custom queue implementation. Custom queues allow the
