@@ -26,32 +26,22 @@ Cast.
   <!-- Cast Debug Logger -->
   <script src="//www.gstatic.com/cast/sdk/libs/devtools/debug_layer/caf_receiver_logger.js"></script>
   <style>
-    #mirrorImage {
-      max-width: 100%;
-      max-height: 100%;
-      object-fit: contain;
-      visibility: hidden;
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      transform: translate(-50%, -50%);
-    }
-    /* WebRTC mirror video (replaces the MJPEG /stream?live=true path) */
-    #rtcVideo {
-      position: absolute; top: 0; left: 0;
-      width: 100%; height: 100%; object-fit: contain;
-      background: #000; visibility: hidden;
-    }
-    #message {
-      color: red;
-    }
-    /* On-screen debug overlay for the WebRTC path (remove for production) */
-    #dbg {
-      position: fixed; top: 0; left: 0; right: 0; max-height: 45%; overflow: hidden;
-      z-index: 50; padding: 8px; background: rgba(0,0,0,.5);
-      color: #0f0; font: 16px/1.3 monospace; white-space: pre-wrap; word-break: break-all;
-      display: none;
-    }
+  #mirrorImage {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    visibility: hidden;
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%); /* Căn giữa theo cả chiều ngang và chiều dọc */
+  }
+  /* WebRTC mirror video (replaces the MJPEG /stream?live=true path) */
+  #rtcVideo {
+    position: absolute; top: 0; left: 0;
+    width: 100%; height: 100%; object-fit: contain;
+    background: #000; visibility: hidden;
+  }
   </style>
 </head>
 
@@ -59,8 +49,7 @@ Cast.
 
   <img id="mirrorImage" src="" alt="Received Image">
   <video id="rtcVideo" autoplay playsinline muted></video>
-  <div id="message"></div>
-  <div id="dbg"></div>
+  <div id="message">Waiting for stream...</div>
 
   <cast-media-player id="videoPlayer"></cast-media-player>
 
@@ -71,10 +60,6 @@ Cast.
          RTCPeerConnection/ontrack/ICE kịp trước khi receiver.js chạy. -->
     <script src="js/adapter.js"></script>
     <script src="js/receiver.js" type="module"></script>
-    <script>
-
-
-    </script>
   </footer>
 </body>
 
