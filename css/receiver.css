@@ -14,9 +14,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-body {
-  --playback-logo-image: url('res/logo_googleg_color_2x_web_48dp.png');
-}
 
 cast-media-player {
   /* --theme-hue: 180; */
